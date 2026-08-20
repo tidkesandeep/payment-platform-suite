@@ -6,6 +6,24 @@ Local-first platform that authorizes payments — including agent-initiated ones
 
 Cloud deployment is deferred. Older planning docs are historical; see [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md).
 
+## Phase branches
+
+Commits for a phase land **only** on that phase's branch. Do not mix later-phase work into an earlier branch. Later phases stack on the previous phase. Phase 12 (cloud) is deferred; do not start it.
+
+| Phase | Branch | Merges into |
+|---|---|---|
+| 1 Foundation | `cursor/phase-1-foundation-0753` | `develop` |
+| 2 Streaming | `cursor/phase-2-streaming-0753` | phase 1 |
+| 3 Lakehouse | `cursor/phase-3-lakehouse-0753` | phase 2 |
+| 4 Features | `cursor/phase-4-features-0753` | phase 3 |
+| 5 Fraud | `cursor/phase-5-fraud-0753` | phase 4 |
+| 6 Observability | `cursor/phase-6-observability-0753` | phase 5 |
+| 7 Investigator | `cursor/phase-7-investigator-0753` | phase 6 |
+| 8 Verifiable Intent | `cursor/phase-8-verifiable-intent-0753` | phase 7 |
+| 9 Agentic demo | `cursor/phase-9-agentic-demo-0753` | phase 8 |
+| 10 Security review | `cursor/phase-10-security-review-0753` | phase 9 |
+| 11 Honest scale | `cursor/phase-11-honest-scale-0753` | phase 10 |
+
 ## Phase 1
 
 The API is a synchronous authorize path: claim idempotency → validate → intent stub → Redis velocity `INCR` → champion stub → policy → persist + outbox. Spark is not on this path. The outbox publisher (Redpanda produce) starts in Phase 2.
