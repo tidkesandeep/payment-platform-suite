@@ -422,8 +422,6 @@ For an agent-initiated payment, verification must fail closed on:
 | Key compromise / bad signature | `INTENT_INVALID` |
 | Valid intent + high fraud | `MANUAL_REVIEW` or `RISK_DECLINED` |
 
-Human checkout may skip agent credentials but still runs fraud + policy.
-
 **Human path (`channel=human`):**
 
 - `intent` must be null
