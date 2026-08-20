@@ -1,0 +1,5 @@
+Phase 10 — Security review
+
+In: Secrets not in git, no real PII, threat tests in CI.
+Out: PCI claims.
+Done when: the security checklist is green.
