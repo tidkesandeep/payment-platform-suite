@@ -1,0 +1,7 @@
+Phase 11 — Honest scale
+
+In: Published TPS and p95 from Locust against /v1/payments.
+Out: Invented 1M TPS.
+Done when: measured p95 is published.
+
+Phase 12 (cloud) is deferred. Do not start it from this branch.
