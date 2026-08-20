@@ -1,0 +1,5 @@
+Phase 5 — Fraud
+
+In: Real XGBoost champion in-process; IEEE-CIS plus synthetic; time-ordered split.
+Out: Weighted three-model blend on the hot path; SageMaker.
+Done when: score is a dimension, not the decision.
