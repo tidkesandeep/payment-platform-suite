@@ -1,0 +1,5 @@
+Phase 6 — Observability
+
+In: OTel traces on /v1/payments, Prom histograms, outbox lag, lease reclaim count, 409 rate.
+Out: Treating 99.9% as a contractual SLO.
+Done when: p95 latency is measured, not guessed.
