@@ -1,0 +1,5 @@
+Phase 8 — Verifiable Intent
+
+In: Official spec adapter; replace the stub; threats A-G as tests.
+Out: Homemade RSA; forking and renaming the reference repo.
+Done when: threats A-G fail closed.
