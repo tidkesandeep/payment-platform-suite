@@ -2,7 +2,7 @@
 
 **Status:** Canonical — this is the single source of truth  
 **Supersedes:** `PAYMENTS_PORTFOLIO_IMPLEMENTATION_GUIDE.md`, `IMPLEMENTATION_GUIDE_COMPARISON.md`, `CLOUD_PROVIDER_STRATEGY.md`, `DOCUMENTATION_INDEX.md`  
-**Updated:** 2026-08-20  
+**Updated:** 2026-08-20 (HLD/LLD: two-plane design, outbox, degradation, policy)  
 **Scope:** Local-first agentic payment platform. Cloud deployment is deferred.
 
 If a prior document disagrees with this one, this one wins.
@@ -45,6 +45,14 @@ Use synthetic or public data only. Never real card numbers, PANs, or customer PI
 | Shape | One platform with layered capabilities | Systems thinking, not four disconnected demos |
 | Runtime | Local Docker Compose first | Cloud is not a current priority |
 | Broker | Kafka or Redpanda locally | Industry-standard event log; swap later if needed |
+| Hot path | Synchronous API only | p95 decision &lt; 100ms |
+| Async path | Kafka consumers + lakehouse jobs | Metrics, gold tables, retraining — not authorize |
+| Stream processor | Kafka consumer group (or Kafka Streams) on the async path; Spark **only** for lakehouse ETL | Spark/micro-batch must never sit on `/v1/payments` |
+| Writes | Postgres transaction + transactional outbox | No dual-write to DB and Kafka |
+| Idempotency | Unique `idempotency_key` + in-flight row | Close the check-then-act race |
+| Policy | Deterministic rule table, separate from the model | Velocity/limits are not a fraud score |
+| Settlement | Async no-op stub after `AUTHORIZED` | This product authorizes; it does not move money |
+| Degradation | Table in §5.7 — fail closed on intent/policy | Infra faults return 503; they do not silently approve |
 | Intent | Official Mastercard Verifiable Intent spec | Standards integration, not invented RSA |
 | Decisioning | Authorization × fraud × policy | Agentic commerce fails if these are collapsed |
 | AI | Investigator with a tool allowlist | LLM explains; deterministic engine decides |
@@ -55,75 +63,101 @@ Use synthetic or public data only. Never real card numbers, PANs, or customer PI
 
 ## 3. System architecture
 
+Two planes. **Authorize is synchronous. Streaming is not on the authorize path.**
+
 ```
-Agent or human checkout
-        │
-        ▼
-┌───────────────────────────────────────────────────────────┐
-│  API / INGESTION                                          │
-│  validate schema · idempotency key · create transaction   │
-└─────────────────────────────┬─────────────────────────────┘
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│  AUTHORIZATION LAYER                                      │
-│  Verifiable Intent (official spec)                        │
-│  signature · expiry · replay · constraints · disclosure   │
-└─────────────────────────────┬─────────────────────────────┘
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│  TRANSACTION / STREAMING LAYER                            │
-│  Kafka/Redpanda · enrich · window · state in Redis        │
-└─────────────────────────────┬─────────────────────────────┘
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│  INTELLIGENCE LAYER                                       │
-│  online features · fraud ensemble · SHAP (on demand)      │
-└─────────────────────────────┬─────────────────────────────┘
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│  DECISION LAYER                                           │
-│  policy engine · approve / challenge / decline / review   │
-│  append-only audit · events                               │
-└───────────────┬─────────────────────────────┬─────────────┘
-                ▼                             ▼
-     Lakehouse (bronze→gold)        Investigator agent
-     dashboards · retraining        read-only tools only
+SYNC  (p95 < 100ms)                         ASYNC  (lag < 5s)
+────────────────────                        ─────────────────
+Agent or human
+      │
+      ▼
+┌──────────────┐     outbox (same TX)     ┌─────────────────┐
+│ API          │ ───────────────────────► │ Kafka/Redpanda  │
+│ 1. idempotency                          └────────┬────────┘
+│ 2. validate                                      │
+│ 3. intent verify                                 ├─► state projector
+│ 4. Redis features                                ├─► windowed metrics
+│ 5. fraud score (in-process / local RPC)          ├─► lakehouse (Spark)
+│ 6. policy rules                                  └─► dashboards / investigator reads
+│ 7. persist decision
+│ 8. return
+└──────────────┘
+      │
+      ▼
+ Postgres (SoR for current row)
 ```
 
-Each layer serves the others:
+Hard rule: Spark, Flink, and Kafka consumer lag **must not** be in the `/v1/payments` call stack.
 
-- A transaction cannot proceed without intent verification (or an explicit human-checkout path that still hits policy + fraud).
-- Risk cannot score without features.
-- Fraud cannot explain without evidence.
+Each concern still depends on the others, but not in one blocking pipeline:
+
+- Agent payments cannot proceed without intent verification. Human checkout uses the human path in §6 (still fraud + policy).
+- Risk scores from **Redis online features**, not from a stream join on the request.
+- Stream jobs **maintain** Redis and gold; they do not authorize.
+- Fraud cannot explain without stored evidence.
 - The investigator cannot approve.
+
+### 3.1 Sequence (authorize)
+
+```
+Client                API                 Postgres            IntentVerifier         Redis           Fraud
+  │ POST /v1/payments   │                    │                     │                   │               │
+  │────────────────────►│                    │                     │                   │               │
+  │                     │ BEGIN              │                     │                   │               │
+  │                     │ insert/lock idempotency key              │                   │               │
+  │                     │───────────────────►│                     │                   │               │
+  │                     │                    │ if completed: return stored result      │               │
+  │                     │ validate           │                     │                   │               │
+  │                     │ verify intent      │                     │                   │               │
+  │                     │─────────────────────────────────────────►│                   │               │
+  │                     │ HGET features      │                     │                   │               │
+  │                     │─────────────────────────────────────────────────────────────►│               │
+  │                     │ score              │                     │                   │               │
+  │                     │─────────────────────────────────────────────────────────────────────────────►│
+  │                     │ policy.evaluate()  │                     │                   │               │
+  │                     │ update txn + outbox│                     │                   │               │
+  │                     │ COMMIT             │                     │                   │               │
+  │                     │ (publisher drains outbox → Kafka)        │                   │               │
+  │◄──── decision ──────│                    │                     │                   │               │
+```
+
+The API process owns the state machine on the hot path. Async consumers **project** events; they do not take a second authorize decision.
 
 ### Transaction state machine
 
-Happy path:
+Hot-path happy path (this is the product):
 
 ```
 CREATED
   → VALIDATED
-  → ENRICHED
-  → INTENT_VERIFIED
+  → INTENT_VERIFIED      (skipped on human path; see §6)
+  → ENRICHED             (Redis feature materialization, in-request)
   → RISK_SCORED
   → DECISIONED
-  → AUTHORIZED
-  → SETTLED
+  → AUTHORIZED | CHALLENGED | MANUAL_REVIEW
 ```
 
-Failure / hold states:
+Failure / hold:
 
 ```
 VALIDATION_FAILED
 INTENT_INVALID
 RISK_DECLINED
 POLICY_VIOLATION
-MANUAL_REVIEW
 PROCESSING_FAILED
 ```
 
-The state machine is the observability and idempotency backbone. Every transition is an event. Replay must produce the same terminal state for the same `idempotency_key`.
+Async stub (not money movement):
+
+```
+AUTHORIZED → SETTLED
+```
+
+`SETTLED` means “demo projector wrote a settlement event.” No ledger, capture, or scheme clearing. Do not implement a real settlement engine.
+
+Terminal for idempotency: any of `AUTHORIZED`, `CHALLENGED`, `MANUAL_REVIEW`, `VALIDATION_FAILED`, `INTENT_INVALID`, `RISK_DECLINED`, `POLICY_VIOLATION`, `PROCESSING_FAILED`. Replay of the same `idempotency_key` returns that stored terminal (or waits if the row is still `CREATED`/`VALIDATED`/…).
+
+`CHALLENGED` and `MANUAL_REVIEW` are **holds**, not pays. Phase 1 returns them as decisions with no step-up protocol. A later phase may add an operator queue; it is not required to start.
 
 ---
 
@@ -135,15 +169,14 @@ Do not implement `if fraud_score < 0.2: approve`.
 decision = f(authorization, fraud, policy)
 ```
 
-| Authorization | Fraud | Policy | Decision |
-|---|---|---|---|
-| VALID | LOW | PASS | APPROVE |
-| VALID | MEDIUM | PASS | CHALLENGE / STEP-UP |
-| VALID | HIGH | PASS | REVIEW or DECLINE |
-| VALID | LOW | FAIL (over limit, bad merchant, velocity) | DECLINE |
-| INVALID | LOW | PASS | DECLINE |
-| INVALID | HIGH | FAIL | DECLINE |
-| EXPIRED / REPLAY | any | any | DECLINE |
+| Authorization | Fraud | Policy | Decision | State |
+|---|---|---|---|---|
+| VALID (or HUMAN) | LOW | PASS | APPROVE | `AUTHORIZED` |
+| VALID (or HUMAN) | MEDIUM | PASS | CHALLENGE | `CHALLENGED` |
+| VALID (or HUMAN) | HIGH | PASS | REVIEW | `MANUAL_REVIEW` |
+| VALID (or HUMAN) | LOW | FAIL | DECLINE | `POLICY_VIOLATION` |
+| INVALID | any | any | DECLINE | `INTENT_INVALID` |
+| EXPIRED / REPLAY | any | any | DECLINE | `INTENT_INVALID` |
 
 Thresholds are configuration, not architecture. Suggested starting bands for the fraud dimension only:
 
@@ -174,14 +207,22 @@ Every payment attempt carries:
 | `timestamp` | Event time (not ingestion time) |
 | `channel` | `human` or `agent` |
 | `agent_id` | Required when `channel=agent` |
-| `intent` | Verifiable Intent payload (or null on human path with documented fallback) |
+| `intent` | Verifiable Intent payload; **required** when `channel=agent`; **null** when `channel=human` |
 
-JSON shape (illustrative):
+**Who mints IDs**
+
+| ID | Minted by | Form |
+|---|---|---|
+| `idempotency_key` | Client | Opaque string, unique per client intent (e.g. `merchant_id + order_id`) |
+| `event_id` | API | ULID (time-sortable, unique per attempt/event) |
+| `transaction_id` | API | ULID, stable for the payment; reused on idempotent replay |
+
+Do not let the client supply `transaction_id` as the idempotency mechanism.
+
+Request JSON (illustrative):
 
 ```json
 {
-  "event_id": "evt_01J...",
-  "transaction_id": "txn_01J...",
   "idempotency_key": "idem_merchant_order_123",
   "customer_id": "cust_001",
   "merchant_id": "mer_789",
@@ -197,6 +238,8 @@ JSON shape (illustrative):
   "intent": { "...official Verifiable Intent payload..." }
 }
 ```
+
+`event_id` and `transaction_id` are assigned by the API, not the client.
 
 ### 5.2 HTTP API
 
@@ -226,25 +269,120 @@ JSON shape (illustrative):
 
 There is no public `approve_payment` tool for the LLM.
 
+Callers of `POST /v1/payments` in local demo: the simulator and a documented API key (or compose-only network). There is no end-user OAuth in Phase 1. `agent_id` on the request must match the intent credential binding when `channel=agent`.
+
 ### 5.3 Idempotency
 
-```
-if idempotency_key in store:
-    return stored_result
-process()
-store(idempotency_key, result)
+Postgres, not Redis, is the idempotency store.
+
+```sql
+UNIQUE (idempotency_key)
 ```
 
-Also persist `event_id` so Kafka replay cannot double-settle. Payment processing must be deterministic under retry.
+Algorithm:
 
-### 5.4 Event time and late data
+1. `BEGIN`
+2. `INSERT` into `idempotency_keys` (`key`, `status=in_progress`) **or** `SELECT … FOR UPDATE` if the key exists
+3. If existing row is terminal: `COMMIT` (no work) and return stored `transaction_id` / decision
+4. If existing row is `in_progress`: wait/retry with a short backoff (or return 409). Do not start a second authorize
+5. Process authorize
+6. Write `transactions` + `outbox` in the **same** transaction
+7. Mark idempotency row terminal
+8. `COMMIT`
+9. Outbox publisher pushes to Kafka after commit
+
+Redis `idem:{key}` may cache the result after commit. It is not authoritative.
+
+### 5.4 Outbox
+
+Do not `INSERT` into Postgres and `produce()` to Kafka as two independent I/O calls.
+
+```
+transactions  ─┐
+outbox        ─┴─ same Postgres transaction
+                 after COMMIT: publisher reads outbox, produces to Kafka, marks published
+```
+
+Outbox payload: state-transition event (`transaction-states`) plus, on first create, the `payments` event. At-least-once produce is allowed; consumers dedupe on `event_id`.
+
+### 5.5 Event time and late data
 
 Use **event time**, not ingestion time.
 
 - Watermarks on the payment stream
-- Windowed aggregations for features and metrics
-- Late events update stateful features; they do not rewrite a settled decision
-- Settled decisions are immutable; corrections are new compensating events
+- Windowed aggregations for features and metrics (async path)
+- Late events update Redis / gold features; they do not rewrite a **terminal** decision
+- Terminal decisions are immutable; corrections are new compensating events (new `event_id`, new `transaction_id` or an explicit reversal event — not an in-place update)
+
+Clock for intent expiry: **API server UTC**. Do not trust the client clock.
+
+### 5.6 Postgres (minimum)
+
+```
+idempotency_keys (
+  key TEXT PRIMARY KEY,
+  transaction_id TEXT NOT NULL,
+  status TEXT NOT NULL,          -- in_progress | terminal
+  decision_json JSONB,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+
+transactions (
+  transaction_id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL UNIQUE,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  state TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  customer_id, merchant_id, amount, currency, ...
+  authorization_status TEXT,
+  fraud_score DOUBLE PRECISION,
+  fraud_band TEXT,
+  policy_status TEXT,
+  policy_violations JSONB,
+  created_at, updated_at TIMESTAMPTZ
+)
+
+outbox (
+  id BIGSERIAL PRIMARY KEY,
+  event_id TEXT NOT NULL UNIQUE,
+  topic TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  published_at TIMESTAMPTZ
+)
+```
+
+Events on the wire: JSON with a schema version field (`schema_version: 1`). No Avro registry required for Phase 1. Additive fields only; do not reuse names.
+
+### 5.7 Degradation
+
+| Dependency | Authorize behavior | `/ready` |
+|---|---|---|
+| Postgres down | 503 | not ready |
+| Intent verifier error (agent path) | fail closed → `INTENT_INVALID` or 503 if verifier process is dead | not ready if process dead |
+| Redis down | fail closed for features: treat online features as missing; **policy still runs**; do not approve by skipping velocity | ready-degraded (metric) |
+| Fraud model timeout / down | no score → `fraud_band=UNKNOWN`; policy + intent still apply; **do not APPROVE** (map UNKNOWN to REVIEW) | ready-degraded |
+| Kafka / outbox publisher down | request can still COMMIT; outbox drains when publisher returns (authorize does not wait on Kafka) | ready if DB up; alert on outbox lag |
+| Investigator down | authorize unaffected | ready |
+
+Never fail **open** (approve because a dependency is down).
+
+### 5.8 Policy engine
+
+Policy is a deterministic rule table evaluated **after** intent and fraud, **never** inside the model.
+
+Phase 1 rules (config, not code forks):
+
+| Rule | Fail when |
+|---|---|
+| `max_amount` | amount &gt; limit (global and per-agent) |
+| `merchant_allowlist` | merchant not in agent/human scope |
+| `velocity_1h` / `velocity_24h` | Redis (or DB) count exceeds cap |
+| `currency` | unsupported currency |
+| `channel_agent_requires_intent` | `channel=agent` and intent missing/invalid (belt and suspenders) |
+
+Evaluation: **first fail wins** (all violations still recorded on the decision). Policy does not call the LLM. Fraud score is an input to the decision matrix, not a policy rule.
 
 ---
 
@@ -286,11 +424,21 @@ For an agent-initiated payment, verification must fail closed on:
 
 Human checkout may skip agent credentials but still runs fraud + policy.
 
-Until the official library is wired in, **do not ship a parallel crypto module**. Stub the verifier behind an interface (`IntentVerifier`) so the rest of the platform can be built against a fake that only exists in tests.
+**Human path (`channel=human`):**
+
+- `intent` must be null
+- `agent_id` must be null
+- Authorization status is `HUMAN` (not `VALID` crypto). The decision matrix treats `HUMAN` like `VALID` for the auth column only
+- Fraud + policy still run
+- Do not accept `channel=human` with an intent blob, or `channel=agent` without one
+
+Until the official library is wired in, **do not ship a parallel crypto module**. Stub the verifier behind an interface (`IntentVerifier.verify(request) -> {status, reason, claims}`) so the rest of the platform can be built against a fake that only exists in tests. The stub **fails closed** for agent paths except in unit tests that inject `VALID`.
 
 ---
 
-## 7. Streaming and state
+## 7. Streaming and state (async only)
+
+Streaming **projects** what the API already decided. It does not authorize.
 
 ### Topics
 
@@ -305,14 +453,17 @@ Until the official library is wired in, **do not ship a parallel crypto module**
 
 Local partition counts can be small (3–8). Replication factor 1 is acceptable locally. Do not claim 1M TPS.
 
-### Processor responsibilities
+Async processor: **Kafka consumer group** in the API/worker process (Kafka Streams is acceptable). **Spark is not this processor.** Spark jobs read from topics or files into Delta (lakehouse only).
 
-1. Schema validate
-2. Deduplicate on `event_id`
-3. Enrich with Redis online features
-4. Emit state transitions
-5. Maintain windowed aggregates (1 minute, 5 minute sliding, 1 hour)
-6. Sink to Redis (hot path) and to the lakehouse (cold path)
+### Processor responsibilities (async)
+
+1. Dedupe on `event_id`
+2. Project state to read models / Redis metrics
+3. Windowed aggregates (1 minute, 5 minute sliding, 1 hour) → Redis + `metrics` topic
+4. Sink to lakehouse bronze
+5. Optional: `AUTHORIZED` → `SETTLED` stub event
+
+Do not re-run intent, fraud, or policy in the consumer.
 
 ### Redis (online state)
 
@@ -367,7 +518,9 @@ Ensemble of three models on ~50 features:
 | LightGBM | Fast second opinion | 0.30 |
 | Small feed-forward net | Non-linear residual | 0.20 |
 
-Latency budget for scoring: well under the overall p95 decision SLO of 100ms. SHAP only for medium/high risk or explicit `/explain` — not on every approve.
+Latency budget for scoring: well under the overall p95 decision SLO of 100ms. **Hot path runs the champion model only** (XGBoost). LightGBM and the net may run as shadow/async later; they must not block `/v1/payments` until measured. SHAP only for medium/high risk or explicit `/explain` — never on the approve hot path.
+
+Serve the champion **in-process in the API** (or a local RPC with a hard timeout, e.g. 20ms). Do not round-trip Kafka to score.
 
 Training:
 
@@ -512,15 +665,16 @@ Cloud is deferred. The runnable system is Docker Compose.
 
 | Service | Role |
 |---|---|
-| API (FastAPI) | Ingress, decision orchestration |
-| Postgres | Transaction + idempotency store |
-| Redpanda or Kafka | Event log |
+| API (FastAPI) | Ingress, **sync authorize**, outbox writer |
+| Outbox publisher | Same app or sidecar; drains Postgres → Kafka |
+| Postgres | Transaction + idempotency + outbox (SoR) |
+| Redpanda or Kafka | Event log (async) |
 | Redis | Online features and hot metrics |
-| Stream processor (Spark or Kafka Streams / Flink-lite) | Enrich, aggregate, sink |
-| Fraud workers | Ensemble inference |
-| Intent verifier | Official spec adapter (stub until wired) |
+| Async consumers | Project states, windows, bronze sink |
+| Spark (lakehouse only) | Bronze → silver → gold |
+| Fraud | Champion model **in API process** |
+| Intent verifier | Official spec adapter (stub until wired); in-request |
 | Simulator | Load / demo traffic |
-| Lakehouse jobs | Spark + Delta on a local volume |
 | Prometheus + Grafana | SLOs and dashboards |
 | MLflow (optional) | Model registry |
 | Investigator (optional) | Read-only agent |
@@ -541,7 +695,7 @@ payment-platform-suite/
 ├── apps/
 │   ├── api/                     # FastAPI orchestrator
 │   ├── simulator/
-│   ├── stream-processor/
+│   ├── stream-processor/        # async Kafka consumers only
 │   ├── fraud/
 │   ├── intent/                  # official spec adapter
 │   ├── investigator/
@@ -575,12 +729,12 @@ Cloud phase is listed only so it is not forgotten. Do not start it.
 
 | Phase | Capability | Done when |
 |---|---|---|
-| 1 Foundation | Compose, API, Postgres, state machine, idempotency | A payment can be created and fetched; retries are safe |
-| 2 Streaming | Broker, simulator, `payments` + `transaction-states` | Events survive restart; lag is visible |
-| 3 Lakehouse | Bronze → silver → gold on local Delta | A day’s sim data is queryable in gold |
-| 4 Features | Redis online + gold offline | `/v1/payments` enriches before scoring |
-| 5 Fraud engine | Ensemble + SHAP on demand | Score is a dimension, not the decision |
-| 6 Observability | Prom/Grafana, traces, SLO boards | p95 latency is measured, not guessed |
+| 1 Foundation | Compose, API, Postgres schema, outbox, state machine, idempotency | A payment can be created and fetched; concurrent same-key retries are safe |
+| 2 Streaming | Broker, outbox publisher, simulator, async consumers | Events survive restart; lag is visible; authorize still works if Kafka is down (outbox backs up) |
+| 3 Lakehouse | Bronze → silver → gold on local Delta **via Spark jobs** | A day’s sim data is queryable in gold |
+| 4 Features | Redis online (async writers + sync readers) + gold offline | `/v1/payments` enriches from Redis, not from Spark |
+| 5 Fraud engine | Champion in-process + SHAP on demand | Score is a dimension, not the decision |
+| 6 Observability | Prom/Grafana, traces, SLO boards, outbox lag | p95 latency is measured, not guessed |
 | 7 Investigator | Allowlisted tools, audit, no pay tool | Case file exists; approve is impossible |
 | 8 Verifiable Intent | Official spec, not custom RSA | Threats A–G fail closed |
 | 9 Agentic demo | Human + agent paths in one flow | Threat H is a passing test |
@@ -597,11 +751,13 @@ Phases 1–7 can proceed with an `IntentVerifier` stub. Phase 8 replaces the stu
 
 Minimum bar:
 
-- Unit: features, policy rules, state transitions, idempotency store
+- Unit: features, **policy rules**, state transitions, idempotency store
+- Concurrent idempotency: two parallel POSTs with the same key → one authorize
 - API: create, replay same `idempotency_key`, fetch state
+- Outbox: killing Kafka mid-request still leaves a drainable outbox row
 - Threat model: cases A–H as automated tests
-- Streaming: duplicate `event_id` does not double-decide
-- Model: score in `[0,1]`; high velocity raises score on a fixture
+- Streaming: duplicate `event_id` does not double-project
+- Model: score in `[0,1]`; timeout → UNKNOWN → REVIEW, never APPROVE
 - Investigator: attempting `approve_payment` is a hard error
 - Load: Locust (or equivalent) against `/v1/payments` with a published TPS and p95
 
@@ -614,8 +770,12 @@ No test should require AWS.
 Do not:
 
 - Call Kafka → Spark → Postgres “a payment platform” without auth, policy, state, and audit
+- Put Spark or any micro-batch processor on `/v1/payments`
+- `INSERT` then `produce()` without an outbox
+- Check-then-act idempotency without a unique row lock
 - Ask an LLM “is this fraud?” and take the answer as the system
 - Hardcode `score > 0.7 → decline` as the whole framework
+- Approve when Redis or the model is down
 - Use real payment or card data
 - Claim PCI, SOX, GDPR certification, or Mastercard partnership
 - Invent Verifiable Intent with ad-hoc RSA
@@ -680,8 +840,8 @@ A reviewer should be able to:
 
 1. `docker compose up` (or the documented equivalent)
 2. Drive a human payment and an agent payment
-3. See approve / challenge / decline with **three** dimensions, not one score
-4. Replay the same `idempotency_key` safely
+3. See approve / challenge / review / decline with **three** dimensions, not one score
+4. Replay the same `idempotency_key` safely, including concurrent retries
 5. Break intent (amount, merchant, replay) and watch fail-closed
 6. See a valid intent still go to review under high fraud
 7. Open an investigation without any path to `approve_payment`
