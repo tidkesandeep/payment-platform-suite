@@ -593,7 +593,7 @@ Hourly (or on a local schedule) from the lakehouse into Redis and `gold/ml_featu
 | LightGBM | Shadow / challenger | **No** until measured (async later) |
 | Small feed-forward net | Shadow | **No** until measured |
 
-Do **not** round-trip Redpanda to score.
+Do **not** compute a 50/30/20 blend on the hot path (champion/challenger with shadow traffic is the production pattern). Do **not** round-trip Redpanda to score.
 
 Latency budget: champion scoring well under the p95 100ms envelope. SHAP only for HIGH/CRITICAL or `/explain` — never on APPROVE.
 
