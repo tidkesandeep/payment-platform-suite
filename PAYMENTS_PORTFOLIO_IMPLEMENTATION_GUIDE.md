@@ -1,3 +1,5 @@
+> **Historical.** This document is superseded by [`PAYMENT_PLATFORM.md`](./PAYMENT_PLATFORM.md), the single source of truth. Do not implement from this file.
+
 # Payment Platform Suite: Mastercard-Targeted Portfolio Implementation Guide
 **Version:** 1.0  
 **Created:** August 2026  

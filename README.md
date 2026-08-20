@@ -1,2 +1,7 @@
 # payment-platform-suite
-Build a production-grade payment platform that detects fraud in real-time, manages transactions at scale, and safely authorizes AI agents to make payments.
+
+Local-first platform that scores fraud in real time, processes payment events, and authorizes AI-agent payments only when intent, risk, and policy all pass.
+
+**Single source of truth:** [PAYMENT_PLATFORM.md](./PAYMENT_PLATFORM.md)
+
+Cloud deployment is deferred. Older planning docs are historical; see [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md).

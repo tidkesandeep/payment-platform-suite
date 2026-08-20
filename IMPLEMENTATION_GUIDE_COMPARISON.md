@@ -1,3 +1,5 @@
+> **Historical.** This document is superseded by [`PAYMENT_PLATFORM.md`](./PAYMENT_PLATFORM.md), the single source of truth. Locked decisions from this comparison live there.
+
 # Implementation Guide Comparison
 ## My Guide vs. Provided Blueprint
 

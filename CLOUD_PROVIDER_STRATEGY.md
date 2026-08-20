@@ -1,3 +1,5 @@
+> **Historical.** Cloud work is deferred. This document is superseded by [`PAYMENT_PLATFORM.md`](./PAYMENT_PLATFORM.md). Revisit only if Phase 12 (cloud) is explicitly opened.
+
 # Cloud Provider Strategy for Agentic Payment Platform
 **Decision Framework: Mastercard Recruitment Signal + Technical Alignment**
 
