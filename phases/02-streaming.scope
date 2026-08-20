@@ -1,0 +1,5 @@
+Phase 2 — Streaming
+
+In: Outbox publisher, Redpanda, consumers that project only, HTTP simulator at modest TPS.
+Out: Consumers that score or authorize. Direct Kafka produce from the simulator.
+Done when: events survive restart; authorize still works if the broker is down.
