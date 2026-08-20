@@ -1,0 +1,5 @@
+Phase 7 — Investigator
+
+In: Allowlisted read tools, audit log, deterministic template if no LLM.
+Out: Any tool that mutates transactions.state.
+Done when: a case file exists and approve_payment is impossible.
