@@ -1,28 +1,27 @@
 > **Historical.** Cloud work is deferred. This document is superseded by [`PAYMENT_PLATFORM.md`](./PAYMENT_PLATFORM.md). Revisit only if Phase 12 (cloud) is explicitly opened.
 
 # Cloud Provider Strategy for Agentic Payment Platform
-**Decision Framework: Mastercard Recruitment Signal + Technical Alignment**
+**Decision Framework: Payments-domain fit + technical alignment**
 
 ---
 
 ## EXECUTIVE SUMMARY
 
-**For Mastercard recruitment:**
+**For a payment platform (when cloud is in scope):**
 
 | CSP | Score | Reason |
 |-----|-------|--------|
-| **Azure** | ⭐⭐⭐⭐ | You already use it (EY); Mastercard actively expanding |
-| **AWS** | ⭐⭐⭐⭐⭐ | Market leader in fintech/payments; universal credibility |
-| **GCP** | ⭐⭐⭐ | Strong data analytics; weaker fintech positioning |
+| **Azure** | ⭐⭐⭐⭐ | Strong enterprise/compliance story; fewer payment-specific services |
+| **AWS** | ⭐⭐⭐⭐⭐ | Market leader in fintech/payments; richest payment-oriented services |
+| **GCP** | ⭐⭐⭐ | Strong data analytics; weaker payments positioning |
 
 **Recommendation: AWS**
 
 Why:
 - Payments infrastructure (AWS Payment Cryptography, PCI)
-- Mastercard uses AWS heavily
+- Widely used in card/fintech processing
 - Strongest fintech ecosystem
-- Maximum recruiter credibility
-- But Azure is acceptable if budget-constrained
+- Azure is acceptable if there is an organizational constraint
 
 ---
 
@@ -150,8 +149,7 @@ Mastercard's primary cloud provider
 Mastercard + AWS Joint Offerings:
 ├─ "Mastercard and AWS Collaboration"
 ├─ Joint fintech solutions
-├─ Payment processing templates
-└─ Recruiting emphasis: AWS expertise valued
+└─ Payment processing templates
 ```
 
 ### Azure
@@ -163,9 +161,8 @@ Secondary cloud provider
 └─ ~20-30% of public cloud spend (estimated)
 
 Azure Experience:
-├─ Valuable (you have it via EY)
-├─ But not primary technical direction
-└─ Recruiter sees it as "enterprise Microsoft shop" skill
+├─ Useful in enterprise banking environments
+└─ Not the primary direction for this payment platform
 ```
 
 ### GCP
@@ -175,66 +172,47 @@ Emerging third option
 ├─ Emerging AI/ML initiatives
 └─ ~10-20% of public cloud spend (estimated)
 
-GCP Recruiting Signal:
-├─ Interesting for ML
-├─ But not payment infrastructure
-└─ Weaker signal for Mastercard
+GCP notes:
+├─ Interesting for analytics/ML
+├─ Not payment infrastructure
+└─ Weaker fit for this platform
 ```
 
 ---
 
-## RECRUITER SIGNAL ANALYSIS
+## PROVIDER FIT (PAYMENTS)
 
 ### AWS Choice
-**Recruiter thinks:**
-> "This engineer chose the payment industry standard.
-> They understand Mastercard's technology direction.
-> They can immediately contribute to our AWS payment infrastructure."
 
-**Signal strength:** ⭐⭐⭐⭐⭐ Maximum
-
-**Why it works:**
-- AWS is where Mastercard's payments business lives
-- Kinesis is their transaction streaming choice
-- SageMaker is their ML platform
-- KMS + Payment Crypto is their key management
-- Demonstrates you know the industry standard
+**Why it fits:**
+- Common home for card/fintech processing
+- Kinesis is a standard managed stream
+- SageMaker is a viable managed ML path
+- KMS + Payment Cryptography covers key management
+- Aligns with the industry default for this domain
 
 ---
 
 ### Azure Choice
-**Recruiter thinks:**
-> "They have Azure experience (good).
-> But they didn't choose the payment industry standard.
-> Why Azure for a payment platform?"
 
-**Signal strength:** ⭐⭐⭐⭐ Good but not optimal
-
-**Why it's weaker:**
-- You're already known to have Azure skills (EY contractor)
-- Choosing Azure again doesn't prove new thinking
-- Mastercard sees Azure as "enterprise legacy," not "cutting-edge payments"
-- Doesn't demonstrate payment domain expertise
+**Why it is weaker for this platform:**
+- Fewer payment-specific services
+- Often associated with enterprise/legacy estates rather than new payment cores
+- Does not by itself demonstrate payment-domain infrastructure choices
 
 **When Azure makes sense:**
-- If you're recruiting for enterprise banking roles (HSBC, Barclays, etc.)
-- If you want to emphasize Azure certifications
-- If building in Azure ecosystem is mandatory (organizational constraint)
+- Organizational constraint (existing Azure estate)
+- Enterprise banking integrations that already live on Azure
+- Budget or identity (Entra ID) requirements that force Azure
 
 ---
 
 ### GCP Choice
-**Recruiter thinks:**
-> "Interesting ML choice.
-> But this isn't a payment platform, it's a data science project."
 
-**Signal strength:** ⭐⭐⭐ Weaker for payments
-
-**Why it's misaligned:**
-- GCP is data-science focused, not payments-focused
-- Mastercard doesn't prioritize GCP for payment infrastructure
-- Sends signal: "I'm a data person, not a payments person"
-- Doesn't leverage Mastercard's existing infrastructure
+**Why it is misaligned:**
+- Data-science focused, not payments-focused
+- Weak payment-specific service set
+- A GCP-first build reads as an analytics project, not a payment platform
 
 ---
 
@@ -261,11 +239,10 @@ Secondary Deployment: Azure (optional)
 ├─ Key Vault instead of KMS
 └─ For 1-2 regions
 
-Recruiter Signal:
-✅ "AWS-first (payments standard)"
-✅ "Multi-cloud thinking (enterprise skill)"
-✅ "Can work with Azure too (EY background)"
-✅ "Understands cloud portability"
+Fit:
+✅ AWS-first (payments standard)
+✅ Optional second cloud (portability)
+✅ Same application, different infrastructure
 
 Implementation Effort:
 - Start with AWS (8-10 weeks)
@@ -280,17 +257,12 @@ FASTEST IMPLEMENTATION
 Primary Implementation: AWS Only
 ├─ All services in AWS
 ├─ Full depth (not spreading thin)
-├─ Best recruiter signal (focused expertise)
 └─ Timeline: 14-15 weeks (as planned)
 
 Why This Works:
-✅ Mastercard's actual infrastructure
-✅ Demonstrates payment domain expertise
+✅ Matches typical card/fintech cloud estates
 ✅ Deeper implementation in one ecosystem
-✅ Can mention "portable architecture" (implicit AWS → others)
-
-Recruiter Signal:
-⭐⭐⭐⭐⭐ Maximum (focused expertise)
+✅ Architecture can still stay portable at the interface layer
 ```
 
 ---
@@ -454,7 +426,7 @@ Cost Optimization:
 ✅ Use spot instances for non-critical workloads
 ✅ Use reserved capacity
 ✅ Shutdown non-production resources nightly
-→ Realistic cost for portfolio project: $300-500/month
+→ Realistic cost for this project: $300-500/month
 ```
 
 ---
@@ -569,7 +541,6 @@ Why:
 3. Strongest fintech ecosystem
 4. AWS Payment Cryptography + KMS for Verifiable Intent
 5. SageMaker for fraud ML
-6. Maximum recruiter credibility
 
 Implementation:
 ├─ Phases 1-8: LocalStack (free)
@@ -577,7 +548,6 @@ Implementation:
 └─ Total project cost: ~$1500-2000 USD
 
 Timeline: 14-15 weeks (as planned)
-Signal: ⭐⭐⭐⭐⭐ Maximum
 ```
 
 ### SECONDARY RECOMMENDATION: AWS Primary + Azure Secondary
@@ -587,8 +557,7 @@ Why:
 1. AWS primary (payments expertise)
 2. Azure secondary (enterprise thinking)
 3. Shows multi-cloud understanding
-4. Leverages your EY/Azure experience
-5. Demonstrates portability
+4. Demonstrates portability
 
 Implementation:
 ├─ Phases 1-8: AWS + LocalStack (free)
@@ -598,7 +567,6 @@ Implementation:
 └─ Total project cost: ~$2500-3000 USD
 
 Timeline: 16-18 weeks (additional 2-3 weeks for Azure)
-Signal: ⭐⭐⭐⭐⭐ Maximum + "multi-cloud architect"
 ```
 
 ### AVOID: GCP Primary
@@ -608,23 +576,17 @@ Why Not:
 1. Weak payments positioning
 2. Data science focus (misses payment architecture)
 3. Mastercard not primary GCP customer
-4. Doesn't leverage Mastercard + AWS relationship
-5. Weaker recruiter signal for payments roles
-
-Signal: ⭐⭐⭐ Good for general ML, but not payments-specific
+4. Weak fit for payment infrastructure vs analytics
 ```
 
 ### AVOID: Azure Primary
 
 ```
 Why Not:
-1. Recruiters expect you to choose AWS for payments
-2. Choosing Azure again (after EY) = "no new thinking"
-3. Azure seen as "enterprise legacy," not "payments innovation"
-4. Mastercard's primary payment infrastructure is AWS
-5. Signals: "data engineer who hasn't shifted to fintech thinking"
-
-Signal: ⭐⭐⭐⭐ Acceptable, but suboptimal
+1. AWS remains the payments-industry default
+2. Azure has fewer payment-specific primitives
+3. Azure is a better secondary/enterprise fit than a primary payment core
+4. Mastercard's publicly described payment cloud work skews AWS
 ```
 
 ---
@@ -687,7 +649,7 @@ All AWS steps above, PLUS:
   ├─ Cost comparison
   └─ Operational complexity comparison
 
-✅ This positions you as "cloud-agnostic architect"
+✅ Application-level portability across providers
 ```
 
 ---
@@ -744,7 +706,6 @@ Total Hybrid Project Cost: ~$2600-3800 USD
 - Mastercard's primary cloud
 - Payment-specific services (KMS, Payment Crypto)
 - Strongest fintech ecosystem
-- Maximum recruiter signal
 - Industry standard for payments
 
 **Implementation:**
@@ -754,8 +715,6 @@ Total Hybrid Project Cost: ~$2600-3800 USD
 
 **Timeline:** 14-15 weeks (as planned)
 
-**Recruiter Signal:** ⭐⭐⭐⭐⭐ Maximum
-
 ---
 
 ### ✅ SECONDARY CHOICE: Hybrid (AWS + Azure)
@@ -764,7 +723,6 @@ Total Hybrid Project Cost: ~$2600-3800 USD
 - AWS primary (payments)
 - Azure secondary (enterprise)
 - Shows multi-cloud thinking
-- Leverages your Azure background
 
 **Implementation:**
 - Phases 1-8: LocalStack (free)
@@ -773,8 +731,6 @@ Total Hybrid Project Cost: ~$2600-3800 USD
 - Total cost: ~$2600-3800
 
 **Timeline:** 16-18 weeks (2-3 weeks longer)
-
-**Recruiter Signal:** ⭐⭐⭐⭐⭐ Maximum + "multi-cloud architect"
 
 ---
 

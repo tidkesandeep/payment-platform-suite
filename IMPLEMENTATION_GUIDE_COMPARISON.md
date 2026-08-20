@@ -7,10 +7,10 @@
 
 ## EXECUTIVE SUMMARY
 
-**My Guide:** Four separate (but integrated) portfolio projects focused on technical excellence
+**My Guide:** Four separate (but integrated) components focused on technical excellence
 **Blueprint:** One cohesive platform demonstrating systems thinking + trust architecture
 
-**Verdict:** The blueprint is strategically superior for Mastercard recruitment.
+**Verdict:** The blueprint is the stronger architecture for a payment platform.
 
 ---
 
@@ -20,23 +20,23 @@
 
 #### My Guide
 ```
-Portfolio Approach:
+Component approach:
 
 Component 1: Fraud Detection
   └─ Ensemble ML, SHAP, FastAPI
-  └─ Signal: ML systems expertise
+  └─ Focus: ML systems
 
 Component 2: Payments Platform  
   └─ Kafka, Spark Streaming, Redis
-  └─ Signal: Streaming architecture expertise
+  └─ Focus: Streaming architecture
 
 Component 3: Lakehouse
   └─ Delta Lake, medallion, governance
-  └─ Signal: Data architecture expertise
+  └─ Focus: Data architecture
 
 Component 4: Verifiable Intent
   └─ Custom RSA crypto implementation
-  └─ Signal: Cryptographic expertise
+  └─ Focus: Cryptography
 ```
 
 **Strength:** Each component independently demonstrates mastery
@@ -91,8 +91,8 @@ class VerifiableIntentManager:
 **Rationale:** Demonstrate cryptographic understanding
 
 **Reality Check:** 
-- ❌ You're not inventing novel crypto (you shouldn't)
-- ❌ Mastercard recruiters don't need to see custom crypto
+- ❌ Custom crypto is the wrong abstraction (you should not invent it)
+- ❌ A payment platform does not need a novel signature scheme
 - ⚠️ Risk of subtle implementation bugs that show as "not production-ready"
 
 ---
@@ -118,9 +118,9 @@ Then build your surrounding payment platform."
 - ✅ Shows you can read and conform to standards
 - ✅ Demonstrates integration skills (more important than crypto skills)
 - ✅ Uses battle-tested cryptography
-- ✅ Positions you as "systems integrator" not "crypto inventor"
+- ✅ Treats Verifiable Intent as a standard to integrate, not a scheme to invent
 
-**This is the bigger insight:** Mastercard doesn't need you to invent Verifiable Intent. They need you to:
+**This is the bigger insight:** Verifiable Intent is a standard to integrate, not a crypto product to invent:
 1. Understand the spec
 2. Integrate it into a payment system
 3. Build the payment platform around it
@@ -371,7 +371,7 @@ Implicit flow = Opaque black box
 ### 7. RESEARCH ANGLE
 
 #### My Guide
-**Implicit:** This is a portfolio project
+**Implicit:** This is a set of components
 
 ---
 
@@ -403,12 +403,11 @@ adapt to behavioral risk?"
 ```
 
 **Why This Matters:**
-Turns portfolio project into research contribution:
-- Interview signal: "I can think systemically"
-- Paper potential: "I can publish findings"
-- Career trajectory: "Engineer who does research"
+Turns a demo into a measurable experiment:
+- Can cryptographic authorization improve fraud detection?
+- Findings can be documented against precision, recall, FPR, FNR, AUC
 
-Mastercard publishes research papers. Showing research thinking distinguishes you.
+Research questions belong after the platform works.
 
 ---
 
@@ -620,7 +619,6 @@ Shows you're thinking about compliance + honesty.
 | **Anti-Pattern Awareness** | Implicit | Explicit | Blueprint |
 | **Quick to Ship** | Yes (4 independent modules) | More complex | My Guide |
 | **Systems Thinking** | Good | Excellent | Blueprint |
-| **Recruiter Signal** | "Strong engineer" | "Systems architect" | Blueprint ⭐ |
 
 ---
 
@@ -628,16 +626,15 @@ Shows you're thinking about compliance + honesty.
 
 ### Use My Guide If:
 - You're time-constrained (12 weeks is tight)
-- You want to ship portfolio projects faster
-- You want independent modules to showcase
-- You're going after multiple companies (not just Mastercard)
+- You want independent modules that ship sooner
+- You are optimizing for component completeness over system coupling
 
 ### Use Blueprint If:
 - You have 14-16 weeks
-- You want maximum Mastercard signal
+- You want one integrated payment platform
 - You want to demonstrate systems thinking
-- You want research/publication potential
-- You want to show you understand payment security deeply
+- You want optional research after the platform works
+- You want payment security (auth × fraud × policy) as a first-class design
 
 ### Recommended Hybrid Approach:
 
@@ -668,10 +665,10 @@ Finally:
 ```
 
 **This gives you:**
-- ✅ Everything from my guide (3 solid portfolio projects)
+- ✅ The three core capabilities (fraud, streaming, lakehouse)
 - ✅ Plus: Integrated architecture
 - ✅ Plus: AI agents + guardrails
-- ✅ Plus: Research potential
+- ✅ Plus: Optional research after the platform works
 - ✅ Plus: Standards-aligned Verifiable Intent
 - ✅ Plus: Production thinking (SRE, observability)
 
@@ -683,7 +680,7 @@ Finally:
 My guide treated it as "here's a crypto project to build."
 Blueprint: "Here's a standard from Mastercard. Learn it. Integrate it."
 
-This distinction is **huge** for recruiter perception.
+This distinction is **the correct engineering move**: integrate the spec; do not parallel it.
 
 ### 2. **Separates Authorization from Fraud**
 This is the core insight of agentic commerce:
@@ -700,9 +697,7 @@ My guide: Implicit separation
 For regulated domains (payments), this distinction matters.
 
 ### 4. **Research Questions**
-Transform from "portfolio project" → "research platform"
-
-Mastercard publishes research. Showing research thinking is premium signal.
+Transform from disconnected components → a platform you can measure.
 
 ### 5. **Explicit Threat Model**
 Most engineers assume:
@@ -720,24 +715,20 @@ This shows you understand real-world payment failures.
 
 The additional 3-4 weeks of effort pays massive dividends:
 
-1. **Cohesive narrative:** "I built agentic payment intelligence platform"
-2. **Systems thinking:** Not "4 cool things" but "an integrated system"
+1. **Cohesive system:** one agentic payment platform
+2. **Systems thinking:** Not four isolated capabilities but an integrated system
 3. **Standards knowledge:** Verifiable Intent spec, not custom crypto
 4. **Safety thinking:** Authorization ≠ Safety
-5. **Research angle:** Not just engineering, but contribution
+5. **Research angle:** Optional experiments after the platform works
 6. **Production thinking:** SLOs, observability, idempotency
 7. **Security thinking:** Explicit threat model
 
-**Mastercard recruiter reads blueprint-style project:**
-> "This person understands:
-> - How payment systems actually fail
-> - How to integrate cryptographic standards
-> - How to separate concerns (auth/fraud/policy)
-> - How to build AI systems that don't hallucinate payments
-> - How to operate at scale with observability
-> - How to think beyond code into systems"
-
-That's a senior/staff engineer signal.
+**The architecture should make these properties visible:**
+- How payment systems actually fail
+- How cryptographic standards are integrated
+- How authorization, fraud, and policy stay separate
+- How AI investigates without deciding payments
+- How the system is observed under load
 
 ---
 
@@ -750,5 +741,5 @@ That's a senior/staff engineer signal.
 5. **Skip Phase 13 (research)** if time-constrained; can be post-project
 6. **Absolutely implement Phase 8 correctly:** Official spec, not custom crypto
 
-The result: A project that's demonstrably stronger for Mastercard (and any payments company).
+The result: a stronger payment platform — integrated, standards-aligned, and operable.
 

@@ -1,9 +1,8 @@
 > **Historical.** This document is superseded by [`PAYMENT_PLATFORM.md`](./PAYMENT_PLATFORM.md), the single source of truth. Do not implement from this file.
 
-# Payment Platform Suite: Mastercard-Targeted Portfolio Implementation Guide
+# Payment Platform Suite: Implementation Guide
 **Version:** 1.0  
 **Created:** August 2026  
-**Target:** Mastercard Recruitment - Senior Data/ML Engineer Role  
 **Timeline:** 12 weeks (Aug - Oct 2026)
 
 ---
@@ -20,7 +19,6 @@
 9. [Testing & Quality Assurance](#testing--quality-assurance)
 10. [Monitoring & Observability](#monitoring--observability)
 11. [Project Timeline & Milestones](#project-timeline--milestones)
-12. [Recruitment Signal Strategy](#recruitment-signal-strategy)
 
 ---
 
@@ -34,18 +32,6 @@ Build a **production-grade, end-to-end real-time payment platform** that demonst
 - **Data Governance & Compliance** in fintech
 - **Modern Data Architecture** (lakehouse pattern)
 - **Agentic Commerce** security (Verifiable Intent)
-
-### Target Signal to Mastercard Recruiters
-```
-"This engineer has built what we need.
-They understand our scale, our problems, our future.
-They can ship independently on day 1."
-```
-
-### Expected Outcomes
-- **Phase 1-2 (Fraud + Payments):** ⭐⭐⭐⭐⭐ Guaranteed interview
-- **Phase 3 (Lakehouse):** ⭐⭐⭐⭐⭐⭐ Strong offer signal
-- **Phase 4 (Verifiable Intent):** ⭐⭐⭐⭐⭐⭐⭐ Senior/Lead role consideration
 
 ### Repository Structure
 ```
@@ -2655,7 +2641,7 @@ Week 3:
 ├─ Day 1-2: Testing & edge cases
 ├─ Day 3: Docker containerization
 ├─ Day 4: Documentation & README
-├─ Day 5: GitHub push, blog post draft
+├─ Day 5: GitHub push
 └─ Week 3 deliverable: Production-grade fraud detection shipped
 ```
 
@@ -2731,133 +2717,22 @@ Week 12:
 
 ---
 
-## RECRUITMENT SIGNAL STRATEGY
-
-### Portfolio Narrative
-
-When you interview at Mastercard:
-
-**Opening Statement:**
-> "I built an end-to-end payment platform that demonstrates my expertise in payments, real-time systems, and modern data architecture. The platform processes millions of transactions in real-time, detects fraud with 85%+ precision, and scales to Mastercard's scale (600M+ tx/day)."
-
-**Component Breakdown:**
-
-1. **Fraud Detection (15 minutes)**
-   - "Real-time ML at sub-100ms latency"
-   - "85% AUC-ROC with ensemble approach"
-   - "Explainability with SHAP values"
-   - → Shows: ML ops, production thinking
-
-2. **Payments Platform (15 minutes)**
-   - "Kafka for millions of events/second"
-   - "Spark Streaming for real-time aggregation"
-   - "Redis for low-latency feature lookups"
-   - → Shows: Streaming architecture, scale thinking
-
-3. **Lakehouse (10 minutes)**
-   - "Delta Lake medallion architecture"
-   - "Bronze → Silver → Gold pipeline"
-   - "PCI DSS compliance & governance"
-   - → Shows: Data architecture, compliance knowledge
-
-4. **Verifiable Intent (5 minutes, if discussed)**
-   - "Cryptographic proof of user intent"
-   - "Safe authorization for AI agents"
-   - "Integration with fraud system"
-   - → Shows: Understanding Mastercard's future roadmap
-
-**Why This Matters:**
-- Demonstrates you've solved Mastercard's exact problems
-- Shows independent execution (not following tutorials)
-- Proves you understand their scale & constraints
-- Indicates future-thinking (Verifiable Intent)
-
-### GitHub Presence
-
-Ensure your GitHub repo tells a story:
-
-```
-payment-platform-suite/
-├── README.md (professional, ~500 words)
-│   ├─ What problem does it solve?
-│   ├─ Architecture overview (diagrams)
-│   ├─ How to run locally (docker-compose)
-│   └─ Performance benchmarks
-│
-├── ARCHITECTURE.md (technical deep-dive)
-│   ├─ System design decisions
-│   ├─ Why Kafka over X?
-│   ├─ Why Delta Lake over Y?
-│   └─ Trade-offs & considerations
-│
-├── DEPLOYMENT.md (operational guide)
-│   ├─ Kubernetes deployment
-│   ├─ Monitoring setup
-│   ├─ Scaling considerations
-│   └─ SLA/availability targets
-│
-├── docs/blog/ (technical posts)
-│   ├─ "Building Real-Time ML at Scale"
-│   ├─ "Medallion Architecture in Practice"
-│   └─ "Fraud Detection at 600M tx/day"
-│
-└── PERFORMANCE.md
-    ├─ Fraud detection: <100ms latency
-    ├─ TPM: 100K+ sustainable
-    ├─ Accuracy: 85% AUC-ROC
-    └─ Cost per transaction: $0.000X
-```
-
-### LinkedIn/Resume Updates
-
-**Before:**
-> Senior Data Engineer, Ernst & Young (2024-Present)
-> - Architected banking data platforms
-> - 600M+ daily transactions
-
-**After:**
-> Senior Data Engineer & AI/ML Systems Architect
-> 
-> Built production payment platform demonstrating expertise in:
-> ├─ Real-time fraud detection (85% AUC-ROC, <100ms latency)
-> ├─ Stream processing (Kafka/Spark at 100K+ TPS)
-> ├─ Data lakehouse architecture (Delta Lake, GDPR/PCI compliant)
-> └─ Cryptographic payment authorization (Mastercard Verifiable Intent)
-> 
-> [Link to GitHub] [Link to Blog Posts]
-
----
-
 ## CONCLUSION
 
-This portfolio demonstrates you are ready for a **Senior Data Engineer** or **Staff AI Systems Engineer** role at Mastercard (or similar fintech companies).
+This guide is a component-level how-to. The canonical architecture is [`PAYMENT_PLATFORM.md`](./PAYMENT_PLATFORM.md): one platform, local-first, official Verifiable Intent, authorization × fraud × policy.
 
-**Expected outcomes:**
-- Phone screen within 1-2 weeks of sharing
-- Technical interview within 2-3 weeks
-- Onsite interview within 4-5 weeks
-- Offer by end of Q3/early Q4 2026
-
-**Keys to success:**
-1. Ship high-quality code (not tutorials)
-2. Write for technical audience (detailed READMEs, blogs)
-3. Optimize for Mastercard's problems (payments, fraud, scale)
+**Keys to execution:**
+1. Ship working, tested code
+2. Document architecture and how to run locally
+3. Optimize for payment-system constraints (fraud latency, streaming, governance, agent intent)
 4. Stay focused (Phases 1-3 are sufficient; skip Phase 4 if time-constrained)
-5. Build in public (GitHub commits, documentation)
+5. Follow `PAYMENT_PLATFORM.md` wherever this file conflicts
 
 **Next steps:**
-1. Create repository structure this week
-2. Start Phase 1 immediately
-3. Commit to steady progress (20-30 hours/week)
-4. Ship Phase 1 by end of August
-5. Reach out to Mastercard recruiters in September
-
----
-
-**Good luck! You've got this.** 🚀
+1. Use the repository structure in `PAYMENT_PLATFORM.md`
+2. Start Phase 1 on `develop`
+3. Keep cloud deferred until Phase 12 is explicitly opened
 
 ---
 
 Generated: August 2026
-Author: [Your Name]
-Contact: tidke.sandeep4@gmail.com

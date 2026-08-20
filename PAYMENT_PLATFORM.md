@@ -11,7 +11,7 @@ If a prior document disagrees with this one, this one wins.
 
 ## 1. What this project is
 
-Build **one cohesive payment platform**, not four portfolio components.
+Build **one cohesive payment platform**, not four disconnected components.
 
 The platform authorizes payments — including payments initiated by AI agents — by combining three independent checks:
 
@@ -23,7 +23,7 @@ A transaction is approved only when all three pass. A valid signature is not saf
 
 ### Why it exists
 
-The original documents were written as a Mastercard-targeted senior data/ML portfolio. That motive still explains the problem shape (authorization-latency fraud, streaming, lakehouse governance, agentic commerce). It does **not** justify fake scale claims, custom cryptography, or cloud spend.
+The problem is agentic commerce on card rails: authorization-latency fraud, streaming at payment volume, lakehouse governance, and cryptographic proof of user intent (Mastercard Verifiable Intent). That domain does **not** justify fake scale claims, custom cryptography, or cloud spend.
 
 ### What we are not building
 
@@ -642,7 +642,7 @@ Compare precision, recall, FPR, FNR, AUC. Keep this as an experiment notebook on
 
 Recorded so the decision is not relitigated every week.
 
-**When cloud is eventually in scope:** AWS is the default port (fintech ecosystem, KMS / Payment Cryptography, broad recruiter familiarity). Azure is a secondary option, not the primary. GCP is a poor fit for this problem. LocalStack is a migration aid, not a week-1 task.
+**When cloud is eventually in scope:** AWS is the default port (fintech ecosystem, KMS / Payment Cryptography). Azure is a secondary option, not the primary. GCP is a poor fit for this problem. LocalStack is a migration aid, not a week-1 task.
 
 **Until then:** local Compose is the environment. Do not create cloud accounts, Terraform, or provider-specific services for this project.
 
