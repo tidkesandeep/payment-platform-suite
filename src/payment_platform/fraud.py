@@ -1,0 +1,39 @@
+"""Phase 1 champion stub. Deterministic; XGBoost arrives in Phase 5."""
+
+from __future__ import annotations
+
+from payment_platform.contracts import FraudBand, FraudResult, PaymentAttempt
+
+LOW_MAX = 0.20
+MEDIUM_MAX = 0.70
+HIGH_MAX = 0.95
+
+
+def band_for_score(score: float | None) -> str:
+    if score is None:
+        return FraudBand.UNKNOWN.value
+    if score < LOW_MAX:
+        return FraudBand.LOW.value
+    if score < MEDIUM_MAX:
+        return FraudBand.MEDIUM.value
+    if score < HIGH_MAX:
+        return FraudBand.HIGH.value
+    return FraudBand.CRITICAL.value
+
+
+class StubChampionScorer:
+    """Maps device_id prefixes to bands so tests can drive H / H2 without ML."""
+
+    def score(self, attempt: PaymentAttempt) -> FraudResult:
+        device = attempt.device_id or ""
+        if device.startswith("dev_timeout") or device.startswith("unk_"):
+            return FraudResult(score=None, band=FraudBand.UNKNOWN.value, reason="timeout")
+        if device.startswith("dev_critical") or device.startswith("crit_"):
+            score = 0.97
+        elif device.startswith("dev_high") or device.startswith("high_"):
+            score = 0.80
+        elif device.startswith("dev_medium") or device.startswith("med_"):
+            score = 0.35
+        else:
+            score = 0.08
+        return FraudResult(score=score, band=band_for_score(score), reason="stub_champion")
