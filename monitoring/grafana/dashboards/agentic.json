@@ -36,6 +36,21 @@
       ],
       "title": "Human vs agent decision rate",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(rate(payments_investigator_tool_failures_total[5m])) by (tool)",
+          "legendFormat": "{{tool}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Investigator tool failures (authorize still 200 if investigator is down)",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
