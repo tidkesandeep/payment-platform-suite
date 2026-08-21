@@ -552,6 +552,17 @@ class PostgresStore:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def get_decision_json(self, transaction_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "SELECT decision_json FROM idempotency_keys WHERE transaction_id = %s",
+                (transaction_id,),
+            ).fetchone()
+        if row is None or row["decision_json"] is None:
+            return None
+        payload = row["decision_json"]
+        return dict(payload) if isinstance(payload, dict) else None
+
     def list_payment_outbox_payloads(self, *, limit: int = 10000) -> list[dict[str, Any]]:
         with self._pool.connection() as conn:
             rows = conn.execute(
