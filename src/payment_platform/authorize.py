@@ -48,6 +48,7 @@ class AppDeps:
     redis_ok: bool = True
     metrics: PlatformMetrics | None = None
     tracer: Any = None
+    investigator: Any = None
 
 
 @dataclass
