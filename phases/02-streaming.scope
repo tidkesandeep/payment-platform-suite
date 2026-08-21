@@ -1,0 +1,9 @@
+Phase 2 — Streaming
+
+In: Outbox publisher, Redpanda, consumers that project only, HTTP simulator at modest TPS.
+Out: Consumers that score or authorize. Direct Kafka produce from the simulator.
+Done when: events survive restart; authorize still works if the broker is down.
+
+Implementation: payment-stream drains outbox after TX2 commit (not on the
+/v1/payments stack). Projector dedupes (topic, event_id) and writes
+transaction_projections plus an optional AUTHORIZED → SETTLED stub event.

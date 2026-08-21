@@ -50,6 +50,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--count", type=int, default=5)
     parser.add_argument("--channel", choices=("human", "agent"), default="human")
     parser.add_argument("--rate", type=float, default=0.0, help="optional delay between posts (seconds)")
+    parser.add_argument(
+        "--tps",
+        type=float,
+        default=0.0,
+        help="modest target posts per second (capped at 200; never produces to Kafka)",
+    )
     args = parser.parse_args(argv)
 
     url = args.base_url.rstrip("/") + "/v1/payments"
@@ -62,7 +68,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{response.status_code} {response.text}")
             if response.status_code == 200:
                 ok += 1
-            if args.rate:
+            if args.tps > 0:
+                delay = 1.0 / min(args.tps, 200.0)
+                time.sleep(delay)
+            elif args.rate:
                 time.sleep(args.rate)
     print(f"completed {ok}/{args.count} HTTP 200", file=sys.stderr)
     return 0 if ok == args.count else 1

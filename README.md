@@ -13,16 +13,33 @@ Commits for a phase land **only** on that phase's branch. Do not mix later-phase
 | Phase | Branch | Merges into |
 |---|---|---|
 | 1 Foundation | `cursor/phase-1-foundation-0753` | `develop` |
-| 2 Streaming | `cursor/phase-2-streaming-0753` | phase 1 |
-| 3 Lakehouse | `cursor/phase-3-lakehouse-0753` | phase 2 |
-| 4 Features | `cursor/phase-4-features-0753` | phase 3 |
-| 5 Fraud | `cursor/phase-5-fraud-0753` | phase 4 |
-| 6 Observability | `cursor/phase-6-observability-0753` | phase 5 |
-| 7 Investigator | `cursor/phase-7-investigator-0753` | phase 6 |
-| 8 Verifiable Intent | `cursor/phase-8-verifiable-intent-0753` | phase 7 |
-| 9 Agentic demo | `cursor/phase-9-agentic-demo-0753` | phase 8 |
+| 2 Streaming | `cursor/phase-02-streaming-0753` | phase 1 |
+| 3 Lakehouse | `cursor/phase-03-lakehouse-0753` | phase 2 |
+| 4 Features | `cursor/phase-04-features-0753` | phase 3 |
+| 5 Fraud | `cursor/phase-05-fraud-0753` | phase 4 |
+| 6 Observability | `cursor/phase-06-observability-0753` | phase 5 |
+| 7 Investigator | `cursor/phase-07-investigator-0753` | phase 6 |
+| 8 Verifiable Intent | `cursor/phase-08-verifiable-intent-0753` | phase 7 |
+| 9 Agentic demo | `cursor/phase-09-agentic-demo-0753` | phase 8 |
 | 10 Security review | `cursor/phase-10-security-review-0753` | phase 9 |
 | 11 Honest scale | `cursor/phase-11-honest-scale-0753` | phase 10 |
+
+## Phase 2
+
+A separate `payment-stream` worker drains the Postgres outbox to Redpanda and projects `payments` / `transaction-states` into a read model. It does not authorize, score, or evaluate policy. `/v1/payments` still returns 200 if the broker is down; unpublished rows stay in the outbox.
+
+```bash
+export PAYMENTS_KAFKA_BOOTSTRAP=127.0.0.1:19092
+payment-stream
+```
+
+Modest-TPS HTTP simulator (still never produces to Kafka):
+
+```bash
+payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel human
+```
+
+Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
 ## Phase 1
 

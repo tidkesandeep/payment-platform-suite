@@ -16,6 +16,7 @@ dependencies = [
     "psycopg[binary,pool]>=3.2.0",
     "redis>=5.2.0",
     "httpx>=0.27.0",
+    "kafka-python>=2.0.2",
 ]
 
 [project.optional-dependencies]
@@ -27,12 +28,13 @@ dev = [
 [project.scripts]
 payment-platform = "payment_platform.api.main:run"
 payment-simulator = "simulator.cli:main"
+payment-stream = "stream_processor.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src", "apps"]
 
 [tool.setuptools.package-data]
-payment_platform = ["schema.sql"]
+payment_platform = ["schema.sql", "schema_phase2.sql"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "apps"]

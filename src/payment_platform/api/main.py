@@ -80,7 +80,11 @@ def create_app(
             except (RedisError, OSError):
                 redis_ok = False
         status = "ready" if redis_ok else "ready-degraded"
-        return JSONResponse({"status": status, "redis": redis_ok})
+        try:
+            lag = current.db.outbox_lag()
+        except Exception:
+            lag = -1
+        return JSONResponse({"status": status, "redis": redis_ok, "outbox_lag": lag})
 
     @app.post("/v1/payments")
     async def create_payment(

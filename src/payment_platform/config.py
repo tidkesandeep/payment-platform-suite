@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     max_attempts_24h: int = 80
     max_approved_amount_minor_24h: int = 2_000_000
     allowed_currencies: str = "USD"
+    kafka_bootstrap: str = "127.0.0.1:19092"
+    publisher_poll_seconds: float = 0.25
 
 
 settings = Settings()
