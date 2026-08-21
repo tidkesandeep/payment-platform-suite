@@ -43,7 +43,7 @@ payment-train-champion = "payment_platform.champion.train:main"
 where = ["src", "apps"]
 
 [tool.setuptools.package-data]
-payment_platform = ["schema.sql", "schema_phase2.sql", "champion/champion.json", "champion/metrics.json"]
+payment_platform = ["schema.sql", "schema_phase2.sql", "schema_phase7.sql", "champion/champion.json", "champion/metrics.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "apps"]
