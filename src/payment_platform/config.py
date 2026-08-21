@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     allowed_currencies: str = "USD"
     kafka_bootstrap: str = "127.0.0.1:19092"
     publisher_poll_seconds: float = 0.25
+    score_timeout_ms: int = 20
 
 
 settings = Settings()
