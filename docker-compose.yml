@@ -12,6 +12,7 @@ services:
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - ./sql/phase2.sql:/docker-entrypoint-initdb.d/02-phase2.sql:ro
       - ./sql/phase7.sql:/docker-entrypoint-initdb.d/03-phase7.sql:ro
+      - ./sql/phase8.sql:/docker-entrypoint-initdb.d/04-phase8.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U payments"]
       interval: 5s
