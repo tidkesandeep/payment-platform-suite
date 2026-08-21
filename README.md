@@ -41,6 +41,14 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 4
+
+`/v1/payments` enriches from Redis (`cust:`, `mer:`, `dev:`, plus Phase 1 `vel:*` INCR). Spark is not consulted. An async rebuild job rewrites profile hashes from Postgres; it does **not** overwrite attempt/approved INCR keys.
+
+```bash
+payment-features-rebuild
+```
+
 ## Phase 1
 
 The API is a synchronous authorize path: claim idempotency → validate → intent stub → Redis velocity `INCR` → champion stub → policy → persist + outbox. Spark is not on this path. The outbox publisher (Redpanda produce) starts in Phase 2.
