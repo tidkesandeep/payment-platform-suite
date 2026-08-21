@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from payment_platform.contracts import FraudBand, FraudResult, PaymentAttempt
+from payment_platform.features.vector import FeatureVector
 
 LOW_MAX = 0.20
 MEDIUM_MAX = 0.70
@@ -24,7 +25,7 @@ def band_for_score(score: float | None) -> str:
 class StubChampionScorer:
     """Maps device_id prefixes to bands so tests can drive H / H2 without ML."""
 
-    def score(self, attempt: PaymentAttempt) -> FraudResult:
+    def score(self, attempt: PaymentAttempt, features: FeatureVector | None = None) -> FraudResult:
         device = attempt.device_id or ""
         if device.startswith("dev_timeout") or device.startswith("unk_"):
             return FraudResult(score=None, band=FraudBand.UNKNOWN.value, reason="timeout")
@@ -34,6 +35,11 @@ class StubChampionScorer:
             score = 0.80
         elif device.startswith("dev_medium") or device.startswith("med_"):
             score = 0.35
+        elif features is not None and features.merchant_high_risk:
+            score = 0.35
         else:
             score = 0.08
-        return FraudResult(score=score, band=band_for_score(score), reason="stub_champion")
+        reason = "stub_champion"
+        if features is not None:
+            reason = f"stub_champion:{features.source}"
+        return FraudResult(score=score, band=band_for_score(score), reason=reason)
