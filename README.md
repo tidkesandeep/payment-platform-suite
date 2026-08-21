@@ -41,6 +41,18 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 5
+
+The sole scorer on `/v1/payments` is an in-process XGBoost champion. The score is a dimension of `decision = f(authorization, fraud, policy)`; a high score does not bypass a policy fail. SHAP is computed only on `POST /v1/payments/{id}/explain` and is skipped when the decision was APPROVE.
+
+Train locally (synthetic IEEE-CIS-shaped data; optional Kaggle overlay at `data/ieee-cis/train_transaction.csv` — this repo does not download Kaggle files):
+
+```bash
+payment-train-champion
+```
+
+The stub scorer remains for tests that drive HIGH/CRITICAL bands via `device_id`. Production `create_app()` loads `champion.json`.
+
 ## Phase 4
 
 `/v1/payments` enriches from Redis (`cust:`, `mer:`, `dev:`, plus Phase 1 `vel:*` INCR). Spark is not consulted. An async rebuild job rewrites profile hashes from Postgres; it does **not** overwrite attempt/approved INCR keys.
