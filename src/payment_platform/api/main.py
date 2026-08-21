@@ -13,6 +13,7 @@ from redis.exceptions import RedisError
 from payment_platform.authorize import AppDeps, AuthorizeError, authorize_payment
 from payment_platform.config import Settings, settings as default_settings
 from payment_platform.db import PostgresStore
+from payment_platform.features.store import FeatureStore
 from payment_platform.fraud import StubChampionScorer
 from payment_platform.intent import StubIntentVerifier
 from payment_platform.velocity import VelocityStore
@@ -40,6 +41,7 @@ def create_app(
             velocity=VelocityStore(redis, db),
             intent=StubIntentVerifier(fail_closed=cfg.intent_fail_closed),
             scorer=StubChampionScorer(),
+            features=FeatureStore(redis),
         )
         app.state.redis = redis
         try:
