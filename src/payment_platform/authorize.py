@@ -15,6 +15,7 @@ from payment_platform.contracts import (
 )
 from payment_platform.db import ClaimOutcome, ClaimResult
 from payment_platform.decision import decide
+from payment_platform.features.store import FeatureStore
 from payment_platform.fingerprint import canonical_fingerprint
 from payment_platform.fraud import StubChampionScorer
 from payment_platform.intent import IntentVerifier
@@ -37,6 +38,7 @@ class AppDeps:
     velocity: VelocityStore
     intent: IntentVerifier
     scorer: StubChampionScorer
+    features: FeatureStore | None = None
     delay_after_claim_s: float = 0.0
     redis_ok: bool = True
 
@@ -122,7 +124,7 @@ def authorize_payment(
         return 422, {"error": "validation_failed", "details": details}
 
     try:
-        record = _evaluate(deps, claim, attempt, started)
+        record = _evaluate(deps, claim, attempt, started, received_at)
     except Exception:
         record = DecisionRecord(
             transaction_id=claim.transaction_id,
@@ -168,10 +170,19 @@ def _evaluate(
     claim: ClaimResult,
     attempt: PaymentAttempt,
     started: float,
+    received_at: datetime,
 ) -> DecisionRecord:
     intent = deps.intent.verify(attempt)
     velocity = deps.velocity.increment_attempt(attempt.customer_id)
-    fraud = deps.scorer.score(attempt)
+    feature_vec = None
+    if deps.features is not None:
+        feature_vec = deps.features.materialize(
+            attempt,
+            velocity,
+            received_at=received_at,
+            intent=intent,
+        )
+    fraud = deps.scorer.score(attempt, feature_vec)
     policy = evaluate_policy(attempt, velocity, deps.settings)
     return decide(
         transaction_id=claim.transaction_id,

@@ -538,6 +538,38 @@ class PostgresStore:
     def connection(self) -> Connection:
         return self._pool.connection()
 
+    def list_transactions_for_features(self, *, limit: int = 10000) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT transaction_id, customer_id, merchant_id, amount_minor, state,
+                       channel, received_at, fraud_band
+                FROM transactions
+                ORDER BY received_at ASC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_payment_outbox_payloads(self, *, limit: int = 10000) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT payload FROM outbox
+                WHERE topic = 'payments'
+                ORDER BY id ASC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        payloads = []
+        for row in rows:
+            payload = row["payload"]
+            if isinstance(payload, dict):
+                payloads.append(payload)
+        return payloads
+
 
 def _sql_statements(sql: str) -> list[str]:
     statements: list[str] = []
