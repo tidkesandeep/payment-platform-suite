@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "127.0.0.1:19092"
     publisher_poll_seconds: float = 0.25
     score_timeout_ms: int = 20
+    investigator_rate_limit_per_minute: int = 60
 
 
 settings = Settings()
