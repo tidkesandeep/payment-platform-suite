@@ -41,6 +41,10 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 7
+
+`POST /v1/investigations` opens a read-only case file from stored features, intent evidence, and on-demand SHAP. Tools are deny-by-default (`get_transaction`, `get_features`, `verify_intent`, `create_investigation`). `approve_payment` / `decline_payment` are hard errors. Every tool call is appended to `investigator_audit`. The investigator cannot change `transactions.state`. If the investigator is down, `/v1/payments` still authorizes.
+
 ## Phase 6
 
 OpenTelemetry traces the authorize span `payments.authorize`. Prometheus histograms on `GET /metrics` measure decision / intent / model latency, 409 rate, lease reclaims, and outbox lag. `/ready` reports **measured** `p95_decision_ms` (not the 100ms target). 99.9% availability is a local demo-window target, not a contract.
