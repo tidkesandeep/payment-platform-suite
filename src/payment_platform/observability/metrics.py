@@ -77,6 +77,18 @@ class PlatformMetrics:
             "Unpublished outbox rows. Alert if draining stalls; authorize still 200.",
             registry=self.registry,
         )
+        self.investigator_calls = Counter(
+            "payments_investigator_tool_calls_total",
+            "Investigator tool invocations.",
+            ["tool", "result"],
+            registry=self.registry,
+        )
+        self.investigator_failures = Counter(
+            "payments_investigator_tool_failures_total",
+            "Investigator tool failures and denials.",
+            ["tool"],
+            registry=self.registry,
+        )
 
     def observe_decision_seconds(self, seconds: float) -> None:
         value = max(0.0, float(seconds))
@@ -109,3 +121,9 @@ class PlatformMetrics:
 
     def decision_p95_seconds(self) -> float | None:
         return percentile(list(self._decision_samples), 95)
+
+    def inc_investigator_call(self, tool: str, result: str) -> None:
+        self.investigator_calls.labels(tool=tool or "unknown", result=result or "error").inc()
+
+    def inc_investigator_failure(self, tool: str) -> None:
+        self.investigator_failures.labels(tool=tool or "unknown").inc()
