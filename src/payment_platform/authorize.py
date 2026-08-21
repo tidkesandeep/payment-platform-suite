@@ -17,7 +17,7 @@ from payment_platform.db import ClaimOutcome, ClaimResult
 from payment_platform.decision import decide
 from payment_platform.features.store import FeatureStore
 from payment_platform.fingerprint import canonical_fingerprint
-from payment_platform.fraud import StubChampionScorer
+from payment_platform.fraud import Scorer
 from payment_platform.intent import IntentVerifier
 from payment_platform.policy import evaluate_policy
 from payment_platform.validation import validate_payment
@@ -37,7 +37,7 @@ class AppDeps:
     db: PostgresStore
     velocity: VelocityStore
     intent: IntentVerifier
-    scorer: StubChampionScorer
+    scorer: Scorer
     features: FeatureStore | None = None
     delay_after_claim_s: float = 0.0
     redis_ok: bool = True
@@ -184,7 +184,7 @@ def _evaluate(
         )
     fraud = deps.scorer.score(attempt, feature_vec)
     policy = evaluate_policy(attempt, velocity, deps.settings)
-    return decide(
+    record = decide(
         transaction_id=claim.transaction_id,
         authorization_status=intent.status,
         authorization_reason=intent.reason,
@@ -194,6 +194,12 @@ def _evaluate(
         policy_violations=policy.violations,
         latency_ms=_latency(started),
     )
+    if feature_vec is not None:
+        record.fraud["features"] = feature_vec.as_dict()
+        record.fraud["reason"] = fraud.reason
+    else:
+        record.fraud["reason"] = fraud.reason
+    return record
 
 
 def _complete_safe(deps: AppDeps, **kwargs: Any) -> None:
