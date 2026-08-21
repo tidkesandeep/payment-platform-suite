@@ -18,7 +18,7 @@ from payment_platform.champion.model import XGBoostChampion
 from payment_platform.features.store import FeatureStore
 from payment_platform.features.vector import FeatureVector
 from payment_platform.fraud import StubChampionScorer
-from payment_platform.intent import StubIntentVerifier
+from payment_platform.intent import OfficialIntentVerifier, issuer_public_key_from_jwk
 from payment_platform.investigator.service import Investigator
 from payment_platform.investigator.tools import InvestigationNotFound, RateLimited, ToolDenied
 from payment_platform.observability.jsonlog import configure_json_logging
@@ -53,7 +53,10 @@ def create_app(
             settings=cfg,
             db=db,
             velocity=VelocityStore(redis, db),
-            intent=StubIntentVerifier(fail_closed=cfg.intent_fail_closed),
+            intent=OfficialIntentVerifier(
+                issuer_public_key=issuer_public_key_from_jwk(cfg.vi_issuer_jwk),
+                nonce_store=db,
+            ),
             scorer=scorer,
             features=FeatureStore(redis),
             metrics=metrics,
