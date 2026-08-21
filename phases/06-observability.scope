@@ -3,3 +3,9 @@ Phase 6 — Observability
 In: OTel traces on /v1/payments, Prom histograms, outbox lag, lease reclaim count, 409 rate.
 Out: Treating 99.9% as a contractual SLO.
 Done when: p95 latency is measured, not guessed.
+
+Implementation: GET /metrics scrapes a per-process Prometheus registry.
+authorize records decision/intent/model histograms, 409 conflicts, lease
+reclaims, and outbox lag. /ready exposes measured p95_decision_ms.
+Compose runs Prometheus and Grafana with four local-SLO dashboards.
+99.9% remains a demo-window target, not a contract.
