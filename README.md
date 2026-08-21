@@ -41,6 +41,14 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 8
+
+Agent `POST /v1/payments` verifies **official** Mastercard Verifiable Intent (`verifiable_intent`: L1–L3 SD-JWT, ES256, `verify_chain` + `check_constraints`). This repo does not implement cryptography and does not fork the reference implementation. A valid signature is **not** an approve; fraud and policy still run.
+
+Human checkout is unchanged (`channel=human`, `intent` and `agent_id` null → auth status `HUMAN`). Agents fail closed without `PAYMENTS_VI_ISSUER_JWK` (issuer **public** JWK only — never a private `d`). Replay of an L2/L3 nonce is `INTENT_INVALID`. Same HTTP idempotency key is still 200 replay.
+
+Threats A–G are product tests and fail closed. Valid intent + HIGH → `MANUAL_REVIEW` (H); + CRITICAL → `RISK_DECLINED` (H2).
+
 ## Phase 7
 
 `POST /v1/investigations` opens a read-only case file from stored features, intent evidence, and on-demand SHAP. Tools are deny-by-default (`get_transaction`, `get_features`, `verify_intent`, `create_investigation`). `approve_payment` / `decline_payment` are hard errors. Every tool call is appended to `investigator_audit`. The investigator cannot change `transactions.state`. If the investigator is down, `/v1/payments` still authorizes.
