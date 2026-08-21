@@ -6,7 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from redis import Redis
 from redis.exceptions import RedisError
 
@@ -18,6 +19,9 @@ from payment_platform.features.store import FeatureStore
 from payment_platform.features.vector import FeatureVector
 from payment_platform.fraud import StubChampionScorer
 from payment_platform.intent import StubIntentVerifier
+from payment_platform.observability.jsonlog import configure_json_logging
+from payment_platform.observability.metrics import PlatformMetrics
+from payment_platform.observability.tracing import make_tracer
 from payment_platform.velocity import VelocityStore
 
 
@@ -34,6 +38,7 @@ def create_app(
             app.state.deps = deps
             yield
             return
+        configure_json_logging()
         db = PostgresStore(cfg.database_url)
         db.ensure_schema()
         redis = Redis.from_url(cfg.redis_url, decode_responses=True)
@@ -48,6 +53,8 @@ def create_app(
             intent=StubIntentVerifier(fail_closed=cfg.intent_fail_closed),
             scorer=scorer,
             features=FeatureStore(redis),
+            metrics=PlatformMetrics(),
+            tracer=make_tracer(),
         )
         app.state.redis = redis
         try:
@@ -92,7 +99,24 @@ def create_app(
             lag = current.db.outbox_lag()
         except Exception:
             lag = -1
-        return JSONResponse({"status": status, "redis": redis_ok, "outbox_lag": lag})
+        p95_ms = None
+        if current.metrics is not None:
+            current.metrics.set_outbox_lag(lag)
+            p95 = current.metrics.decision_p95_seconds()
+            if p95 is not None:
+                p95_ms = round(p95 * 1000, 3)
+        return JSONResponse(
+            {
+                "status": status,
+                "redis": redis_ok,
+                "outbox_lag": lag,
+                "p95_decision_ms": p95_ms,
+                "slo": {
+                    "decision_p95_ms_target": 100,
+                    "contractual": False,
+                },
+            }
+        )
 
     @app.post("/v1/payments")
     async def create_payment(
@@ -105,23 +129,28 @@ def create_app(
         raw = await request.body()
         secret = _api_secret(x_api_key, authorization)
         if not secret:
+            _observe_http(current, "/v1/payments", 401)
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         try:
             api_key_id = current.db.resolve_api_key(
                 secret, current.settings.api_key, current.settings.api_key_id
             )
         except Exception:
+            _observe_http(current, "/v1/payments", 503)
             return JSONResponse(status_code=503, content={"error": "unavailable"})
         if api_key_id is None:
+            _observe_http(current, "/v1/payments", 401)
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         try:
             body = json.loads(raw.decode("utf-8") or "{}")
         except (UnicodeDecodeError, json.JSONDecodeError):
+            _observe_http(current, "/v1/payments", 422)
             return JSONResponse(
                 status_code=422,
                 content={"error": "validation_failed", "details": ["body must be JSON"]},
             )
         if not isinstance(body, dict):
+            _observe_http(current, "/v1/payments", 422)
             return JSONResponse(
                 status_code=422,
                 content={"error": "validation_failed", "details": ["body must be a JSON object"]},
@@ -133,7 +162,22 @@ def create_app(
             idempotency_key=idempotency_key,
             body_bytes_len=len(raw),
         )
+        _observe_http(current, "/v1/payments", status_code)
         return JSONResponse(status_code=status_code, content=payload)
+
+    @app.get("/metrics")
+    def metrics(request: Request) -> Response:
+        current: AppDeps = request.app.state.deps
+        if current.metrics is None:
+            return Response(status_code=404, content="metrics disabled")
+        try:
+            current.metrics.set_outbox_lag(current.db.outbox_lag())
+        except Exception:
+            pass
+        return Response(
+            generate_latest(current.metrics.registry),
+            media_type=CONTENT_TYPE_LATEST,
+        )
 
     @app.get("/v1/payments/{transaction_id}")
     def get_payment(transaction_id: str, request: Request) -> JSONResponse:
@@ -172,6 +216,11 @@ def create_app(
         return JSONResponse(body)
 
     return app
+
+
+def _observe_http(deps: AppDeps, path: str, status: int) -> None:
+    if deps.metrics is not None:
+        deps.metrics.observe_http(path, status)
 
 
 def _api_secret(x_api_key: str | None, authorization: str | None) -> str | None:
