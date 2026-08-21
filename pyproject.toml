@@ -17,6 +17,10 @@ dependencies = [
     "redis>=5.2.0",
     "httpx>=0.27.0",
     "kafka-python>=2.0.2",
+    "numpy>=2.0.0",
+    "scikit-learn>=1.5.0",
+    "xgboost>=2.1.0",
+    "shap>=0.46.0",
 ]
 
 [project.optional-dependencies]
@@ -30,12 +34,13 @@ payment-platform = "payment_platform.api.main:run"
 payment-simulator = "simulator.cli:main"
 payment-stream = "stream_processor.cli:main"
 payment-features-rebuild = "feature_rebuild.cli:main"
+payment-train-champion = "payment_platform.champion.train:main"
 
 [tool.setuptools.packages.find]
 where = ["src", "apps"]
 
 [tool.setuptools.package-data]
-payment_platform = ["schema.sql", "schema_phase2.sql"]
+payment_platform = ["schema.sql", "schema_phase2.sql", "champion/champion.json", "champion/metrics.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "apps"]
