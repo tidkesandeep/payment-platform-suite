@@ -56,3 +56,30 @@ class FeatureVector:
             "agent_txn_count": self.agent_txn_count,
             "source": self.source,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "FeatureVector":
+        return cls(
+            amount_minor=int(data.get("amount_minor") or 0),
+            merchant_category=str(data.get("merchant_category") or ""),
+            channel=str(data.get("channel") or "human"),
+            hour_of_day=int(data.get("hour_of_day") or 0),
+            currency=str(data.get("currency") or "USD"),
+            attempt_1h=int(data.get("attempt_1h") or 0),
+            attempt_24h=int(data.get("attempt_24h") or 0),
+            approved_amount_minor_24h=int(data.get("approved_amount_minor_24h") or 0),
+            txn_count_30d=int(data.get("txn_count_30d") or 0),
+            avg_amount_30d=float(data.get("avg_amount_30d") or 0),
+            unique_merchants_30d=int(data.get("unique_merchants_30d") or 0),
+            days_since_last_txn=data.get("days_since_last_txn"),
+            account_age_days=data.get("account_age_days"),
+            merchant_avg_amount=float(data.get("merchant_avg_amount") or 0),
+            merchant_fraud_rate=float(data.get("merchant_fraud_rate") or 0),
+            merchant_high_risk=bool(data.get("merchant_high_risk")),
+            home_country_match=data.get("home_country_match"),
+            new_device=bool(data.get("new_device")),
+            customers_on_device_24h=int(data.get("customers_on_device_24h") or 0),
+            intent_valid=data.get("intent_valid"),
+            agent_txn_count=data.get("agent_txn_count"),
+            source=str(data.get("source") or "redis"),
+        )

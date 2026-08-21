@@ -1,6 +1,8 @@
-"""Phase 1 champion stub. Deterministic; XGBoost arrives in Phase 5."""
+"""Fraud bands and the test-only champion stub. Production scoring is XGBoostChampion."""
 
 from __future__ import annotations
+
+from typing import Protocol
 
 from payment_platform.contracts import FraudBand, FraudResult, PaymentAttempt
 from payment_platform.features.vector import FeatureVector
@@ -8,6 +10,10 @@ from payment_platform.features.vector import FeatureVector
 LOW_MAX = 0.20
 MEDIUM_MAX = 0.70
 HIGH_MAX = 0.95
+
+
+class Scorer(Protocol):
+    def score(self, attempt: PaymentAttempt, features: FeatureVector | None = None) -> FraudResult: ...
 
 
 def band_for_score(score: float | None) -> str:

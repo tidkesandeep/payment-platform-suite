@@ -13,7 +13,9 @@ from redis.exceptions import RedisError
 from payment_platform.authorize import AppDeps, AuthorizeError, authorize_payment
 from payment_platform.config import Settings, settings as default_settings
 from payment_platform.db import PostgresStore
+from payment_platform.champion.model import XGBoostChampion
 from payment_platform.features.store import FeatureStore
+from payment_platform.features.vector import FeatureVector
 from payment_platform.fraud import StubChampionScorer
 from payment_platform.intent import StubIntentVerifier
 from payment_platform.velocity import VelocityStore
@@ -35,12 +37,16 @@ def create_app(
         db = PostgresStore(cfg.database_url)
         db.ensure_schema()
         redis = Redis.from_url(cfg.redis_url, decode_responses=True)
+        try:
+            scorer = XGBoostChampion.load(timeout_ms=cfg.score_timeout_ms)
+        except Exception:
+            scorer = StubChampionScorer()
         app.state.deps = AppDeps(
             settings=cfg,
             db=db,
             velocity=VelocityStore(redis, db),
             intent=StubIntentVerifier(fail_closed=cfg.intent_fail_closed),
-            scorer=StubChampionScorer(),
+            scorer=scorer,
             features=FeatureStore(redis),
         )
         app.state.redis = redis
@@ -148,7 +154,21 @@ def create_app(
             return JSONResponse(status_code=404, content={"error": "not_found"})
         body = _serialize_row(row)
         body["shap"] = None
-        body["note"] = "SHAP is out of scope for Phase 1"
+        if row.get("state") == "AUTHORIZED":
+            body["note"] = "SHAP is not computed on APPROVE"
+            return JSONResponse(body)
+        # SHAP is on-demand only. The authorize path never computes it.
+        scorer = current.scorer
+        decision = current.db.get_decision_json(transaction_id) or {}
+        raw_features = (decision.get("fraud") or {}).get("features")
+        if raw_features and hasattr(scorer, "shap_values"):
+            try:
+                body["shap"] = scorer.shap_values(FeatureVector.from_dict(raw_features))
+            except Exception:
+                body["shap"] = None
+                body["note"] = "SHAP explainer failed"
+        else:
+            body["note"] = "SHAP requires the XGBoost champion and stored features"
         return JSONResponse(body)
 
     return app
