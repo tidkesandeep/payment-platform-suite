@@ -3,3 +3,8 @@ Phase 4 — Features
 In: Richer Redis online features; async rebuild from gold in addition to Phase 1 INCR.
 Out: Replacing in-request INCR with async-only writers.
 Done when: /v1/payments enriches from Redis, not from Spark.
+
+Implementation: FeatureStore materializes customer/merchant/device/agent
+hashes on the authorize path after velocity INCR. payment-features-rebuild
+rewrites those hashes from Postgres (gold-shaped until the lakehouse exists)
+and never writes vel:* keys.
