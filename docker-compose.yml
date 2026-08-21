@@ -10,6 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./sql/phase2.sql:/docker-entrypoint-initdb.d/02-phase2.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U payments"]
       interval: 5s
@@ -61,6 +62,23 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  stream:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["payment-stream"]
+    environment:
+      PAYMENTS_DATABASE_URL: postgresql://payments:payments@postgres:5432/payments
+      PAYMENTS_REDIS_URL: redis://redis:6379/0
+      PAYMENTS_KAFKA_BOOTSTRAP: redpanda:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
 
 volumes:
