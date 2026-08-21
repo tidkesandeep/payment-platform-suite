@@ -29,6 +29,7 @@ dev = [
 payment-platform = "payment_platform.api.main:run"
 payment-simulator = "simulator.cli:main"
 payment-stream = "stream_processor.cli:main"
+payment-features-rebuild = "feature_rebuild.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src", "apps"]
