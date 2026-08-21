@@ -28,6 +28,23 @@ def _schema_path() -> Path:
     raise FileNotFoundError("schema.sql / sql/init.sql")
 
 
+def _schema_paths() -> list[Path]:
+    paths = [_schema_path()]
+    here = Path(__file__).resolve()
+    extras = [
+        here.parent / "schema_phase2.sql",
+        here.parents[2] / "sql" / "phase2.sql",
+        Path.cwd() / "sql" / "phase2.sql",
+    ]
+    seen = {p.resolve() for p in paths}
+    for extra in extras:
+        resolved = extra.resolve() if extra.exists() else extra
+        if extra.is_file() and resolved not in seen:
+            paths.append(extra)
+            seen.add(resolved)
+    return paths
+
+
 class ClaimOutcome:
     REPLAY = "replay"
     CONFLICT = "conflict"
@@ -58,10 +75,11 @@ class PostgresStore:
         return True
 
     def ensure_schema(self) -> None:
-        sql = _schema_path().read_text(encoding="utf-8")
-        with self._pool.connection() as conn:
-            for statement in _sql_statements(sql):
-                conn.execute(statement)
+        for path in _schema_paths():
+            sql = path.read_text(encoding="utf-8")
+            with self._pool.connection() as conn:
+                for statement in _sql_statements(sql):
+                    conn.execute(statement)
 
     def resolve_api_key(self, secret: str, configured_secret: str, configured_id: str) -> str | None:
         if secret == configured_secret:
@@ -407,6 +425,115 @@ class PostgresStore:
             approved_amount_minor_24h=found.get(keys[3], 0),
             available=True,
         )
+
+    def unpublished_outbox(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, event_id, topic, payload, created_at
+                FROM outbox
+                WHERE published_at IS NULL
+                ORDER BY id
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_published(self, outbox_id: int) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                UPDATE outbox
+                SET published_at = NOW()
+                WHERE id = %s AND published_at IS NULL
+                """,
+                (outbox_id,),
+            )
+            conn.commit()
+
+    def outbox_lag(self) -> int:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM outbox WHERE published_at IS NULL"
+            ).fetchone()
+        return int(row["n"]) if row else 0
+
+    def claim_processed(self, topic: str, event_id: str) -> bool:
+        with self._pool.connection() as conn:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO processed_events (topic, event_id)
+                    VALUES (%s, %s)
+                    """,
+                    (topic, event_id),
+                )
+                conn.commit()
+                return True
+            except UniqueViolation:
+                conn.rollback()
+                return False
+
+    def upsert_projection(
+        self,
+        *,
+        transaction_id: str,
+        state: str,
+        customer_id: str | None,
+        payload: dict[str, Any],
+        settled: bool,
+    ) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO transaction_projections (
+                    transaction_id, state, customer_id, payload, settled, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (transaction_id) DO UPDATE SET
+                    state = EXCLUDED.state,
+                    customer_id = COALESCE(EXCLUDED.customer_id, transaction_projections.customer_id),
+                    payload = EXCLUDED.payload,
+                    settled = transaction_projections.settled OR EXCLUDED.settled,
+                    updated_at = NOW()
+                """,
+                (transaction_id, state, customer_id, Json(payload), settled),
+            )
+            conn.commit()
+
+    def mark_settlement_emitted(self, transaction_id: str) -> bool:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                """
+                UPDATE transaction_projections
+                SET settlement_emitted = TRUE, updated_at = NOW()
+                WHERE transaction_id = %s AND settlement_emitted = FALSE
+                RETURNING transaction_id
+                """,
+                (transaction_id,),
+            ).fetchone()
+            conn.commit()
+        return row is not None
+
+    def enqueue_outbox(self, event_id: str, topic: str, payload: dict[str, Any]) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO outbox (event_id, topic, payload, created_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (event_id, topic) DO NOTHING
+                """,
+                (event_id, topic, Json(payload)),
+            )
+            conn.commit()
+
+    def get_projection(self, transaction_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM transaction_projections WHERE transaction_id = %s",
+                (transaction_id,),
+            ).fetchone()
+        return dict(row) if row else None
 
     def connection(self) -> Connection:
         return self._pool.connection()
