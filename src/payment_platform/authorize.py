@@ -249,7 +249,12 @@ def _evaluate(
     model_started = time.perf_counter()
     fraud = deps.scorer.score(attempt, feature_vec)
     obs.model_s = time.perf_counter() - model_started
-    policy = evaluate_policy(attempt, velocity, deps.settings)
+    policy = evaluate_policy(
+        attempt,
+        velocity,
+        deps.settings,
+        allowlist=deps.settings.parsed_merchant_allowlist(),
+    )
     record = decide(
         transaction_id=claim.transaction_id,
         authorization_status=intent.status,
@@ -265,6 +270,8 @@ def _evaluate(
         record.fraud["reason"] = fraud.reason
     else:
         record.fraud["reason"] = fraud.reason
+    if intent.claims:
+        record.authorization["claims"] = intent.claims
     return record
 
 
