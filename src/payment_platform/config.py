@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     publisher_poll_seconds: float = 0.25
     score_timeout_ms: int = 20
     investigator_rate_limit_per_minute: int = 60
+    merchant_allowlist: str = ""
+    vi_issuer_jwk: str = ""
+
+    def parsed_merchant_allowlist(self) -> frozenset[str] | None:
+        items = {part.strip() for part in self.merchant_allowlist.split(",") if part.strip()}
+        return frozenset(items) if items else None
 
 
 settings = Settings()

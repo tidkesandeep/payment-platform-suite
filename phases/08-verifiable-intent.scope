@@ -1,0 +1,11 @@
+Phase 8 — Verifiable Intent
+
+In: Official spec adapter; replace the stub; threats A-G as tests.
+Out: Homemade RSA; forking and renaming the reference repo.
+Done when: threats A-G fail closed.
+
+Implementation: OfficialIntentVerifier calls published verify_chain and
+check_constraints. Production create_app() uses that adapter. VALID is an
+auth column only. Replay nonces persist in intent_nonces. Policy
+merchant_allowlist is wired for threat B2. Tests mint ephemeral ES256
+chains; private keys are not in git.

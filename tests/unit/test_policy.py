@@ -54,3 +54,14 @@ def test_pass_when_within_limits():
     result = evaluate_policy(_attempt(), _velocity(), Settings())
     assert result.status == "PASS"
     assert result.violations == []
+
+
+def test_merchant_allowlist():
+    result = evaluate_policy(
+        _attempt(merchant_id="mer_evil"),
+        _velocity(),
+        Settings(),
+        allowlist=frozenset({"mer_789"}),
+    )
+    assert result.status == "FAIL"
+    assert "merchant_allowlist" in result.violations

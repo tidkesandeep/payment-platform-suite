@@ -24,6 +24,7 @@ dependencies = [
     "prometheus-client>=0.21.0",
     "opentelemetry-api>=1.27.0",
     "opentelemetry-sdk>=1.27.0",
+    "verifiable-intent @ git+https://github.com/agent-intent/verifiable-intent.git@356c29635f1c44df7de02edb58699ca9f29bece6",
 ]
 
 [project.optional-dependencies]
@@ -43,9 +44,9 @@ payment-train-champion = "payment_platform.champion.train:main"
 where = ["src", "apps"]
 
 [tool.setuptools.package-data]
-payment_platform = ["schema.sql", "schema_phase2.sql", "schema_phase7.sql", "champion/champion.json", "champion/metrics.json"]
+payment_platform = ["schema.sql", "schema_phase2.sql", "schema_phase7.sql", "schema_phase8.sql", "champion/champion.json", "champion/metrics.json"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "apps"]
+pythonpath = ["src", "apps", "tests"]
 testpaths = ["tests"]
 asyncio_mode = "auto"

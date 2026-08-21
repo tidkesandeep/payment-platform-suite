@@ -38,6 +38,9 @@ def _schema_paths() -> list[Path]:
         here.parent / "schema_phase7.sql",
         here.parents[2] / "sql" / "phase7.sql",
         Path.cwd() / "sql" / "phase7.sql",
+        here.parent / "schema_phase8.sql",
+        here.parents[2] / "sql" / "phase8.sql",
+        Path.cwd() / "sql" / "phase8.sql",
     ]
     seen = {p.resolve() for p in paths}
     for extra in extras:
@@ -652,6 +655,19 @@ class PostgresStore:
                 (investigation_id,),
             ).fetchall()
         return [dict(r) for r in rows]
+
+    def claim_intent_nonce(self, nonce: str) -> bool:
+        with self._pool.connection() as conn:
+            try:
+                conn.execute(
+                    "INSERT INTO intent_nonces (nonce) VALUES (%s)",
+                    (nonce,),
+                )
+                conn.commit()
+                return True
+            except UniqueViolation:
+                conn.rollback()
+                return False
 
     def list_payment_outbox_payloads(self, *, limit: int = 10000) -> list[dict[str, Any]]:
         with self._pool.connection() as conn:
