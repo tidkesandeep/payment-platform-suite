@@ -41,6 +41,12 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 6
+
+OpenTelemetry traces the authorize span `payments.authorize`. Prometheus histograms on `GET /metrics` measure decision / intent / model latency, 409 rate, lease reclaims, and outbox lag. `/ready` reports **measured** `p95_decision_ms` (not the 100ms target). 99.9% availability is a local demo-window target, not a contract.
+
+Compose adds Prometheus `:9090` and Grafana `:3000` (anonymous viewer) with payments, streaming, fraud, and agentic dashboards.
+
 ## Phase 5
 
 The sole scorer on `/v1/payments` is an in-process XGBoost champion. The score is a dimension of `decision = f(authorization, fraud, policy)`; a high score does not bypass a policy fail. SHAP is computed only on `POST /v1/payments/{id}/explain` and is skipped when the decision was APPROVE.

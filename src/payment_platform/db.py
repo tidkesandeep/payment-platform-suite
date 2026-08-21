@@ -58,6 +58,7 @@ class ClaimResult:
     transaction_id: str
     decision: dict[str, Any] | None = None
     fingerprint: str | None = None
+    reclaimed: bool = False
 
 
 class PostgresStore:
@@ -197,6 +198,7 @@ class PostgresStore:
                     outcome=ClaimOutcome.CLAIMED,
                     transaction_id=row["transaction_id"],
                     fingerprint=fingerprint,
+                    reclaimed=True,
                 )
             except Exception:
                 conn.execute("ROLLBACK")
