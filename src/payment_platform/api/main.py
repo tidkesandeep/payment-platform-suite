@@ -19,6 +19,8 @@ from payment_platform.features.store import FeatureStore
 from payment_platform.features.vector import FeatureVector
 from payment_platform.fraud import StubChampionScorer
 from payment_platform.intent import StubIntentVerifier
+from payment_platform.investigator.service import Investigator
+from payment_platform.investigator.tools import InvestigationNotFound, RateLimited, ToolDenied
 from payment_platform.observability.jsonlog import configure_json_logging
 from payment_platform.observability.metrics import PlatformMetrics
 from payment_platform.observability.tracing import make_tracer
@@ -46,6 +48,7 @@ def create_app(
             scorer = XGBoostChampion.load(timeout_ms=cfg.score_timeout_ms)
         except Exception:
             scorer = StubChampionScorer()
+        metrics = PlatformMetrics()
         app.state.deps = AppDeps(
             settings=cfg,
             db=db,
@@ -53,8 +56,14 @@ def create_app(
             intent=StubIntentVerifier(fail_closed=cfg.intent_fail_closed),
             scorer=scorer,
             features=FeatureStore(redis),
-            metrics=PlatformMetrics(),
+            metrics=metrics,
             tracer=make_tracer(),
+            investigator=Investigator(
+                db,
+                scorer,
+                metrics=metrics,
+                max_per_minute=cfg.investigator_rate_limit_per_minute,
+            ),
         )
         app.state.redis = redis
         try:
@@ -214,6 +223,111 @@ def create_app(
         else:
             body["note"] = "SHAP requires the XGBoost champion and stored features"
         return JSONResponse(body)
+
+    @app.post("/v1/investigations")
+    async def create_investigation(request: Request) -> JSONResponse:
+        current: AppDeps = request.app.state.deps
+        secret = _api_secret(
+            request.headers.get("x-api-key"),
+            request.headers.get("authorization"),
+        )
+        if not secret:
+            _observe_http(current, "/v1/investigations", 401)
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        try:
+            api_key_id = current.db.resolve_api_key(
+                secret, current.settings.api_key, current.settings.api_key_id
+            )
+        except Exception:
+            _observe_http(current, "/v1/investigations", 503)
+            return JSONResponse(status_code=503, content={"error": "unavailable"})
+        if api_key_id is None:
+            _observe_http(current, "/v1/investigations", 401)
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        if current.investigator is None:
+            _observe_http(current, "/v1/investigations", 503)
+            return JSONResponse(status_code=503, content={"error": "investigator_unavailable"})
+        raw = await request.body()
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            _observe_http(current, "/v1/investigations", 422)
+            return JSONResponse(
+                status_code=422,
+                content={"error": "validation_failed", "details": ["body must be JSON"]},
+            )
+        if not isinstance(body, dict):
+            _observe_http(current, "/v1/investigations", 422)
+            return JSONResponse(
+                status_code=422,
+                content={"error": "validation_failed", "details": ["body must be a JSON object"]},
+            )
+        tool = body.get("tool")
+        if isinstance(tool, str) and tool:
+            try:
+                result = current.investigator.invoke(
+                    tool,
+                    body,
+                    agent_id=str(body.get("agent_id") or "anonymous"),
+                )
+            except ToolDenied as denied:
+                _observe_http(current, "/v1/investigations", 422)
+                return JSONResponse(
+                    status_code=422,
+                    content={"error": "tool_denied", "tool": denied.tool, "reason": denied.reason},
+                )
+            except RateLimited as limited:
+                _observe_http(current, "/v1/investigations", 429)
+                return JSONResponse(status_code=429, content={"error": "rate_limited", "tool": limited.tool})
+            except InvestigationNotFound:
+                _observe_http(current, "/v1/investigations", 404)
+                return JSONResponse(status_code=404, content={"error": "not_found"})
+            _observe_http(current, "/v1/investigations", 200)
+            return JSONResponse(result)
+        transaction_id = body.get("transaction_id")
+        agent_id = body.get("agent_id")
+        if not isinstance(transaction_id, str) or not transaction_id:
+            _observe_http(current, "/v1/investigations", 422)
+            return JSONResponse(
+                status_code=422,
+                content={"error": "validation_failed", "details": ["transaction_id is required"]},
+            )
+        if not isinstance(agent_id, str) or not agent_id:
+            _observe_http(current, "/v1/investigations", 422)
+            return JSONResponse(
+                status_code=422,
+                content={"error": "validation_failed", "details": ["agent_id is required"]},
+            )
+        try:
+            opened = current.investigator.open_case(transaction_id=transaction_id, agent_id=agent_id)
+        except InvestigationNotFound:
+            _observe_http(current, "/v1/investigations", 404)
+            return JSONResponse(status_code=404, content={"error": "not_found"})
+        except ToolDenied as denied:
+            _observe_http(current, "/v1/investigations", 422)
+            return JSONResponse(
+                status_code=422,
+                content={"error": "tool_denied", "tool": denied.tool, "reason": denied.reason},
+            )
+        except RateLimited as limited:
+            _observe_http(current, "/v1/investigations", 429)
+            return JSONResponse(status_code=429, content={"error": "rate_limited", "tool": limited.tool})
+        except Exception:
+            _observe_http(current, "/v1/investigations", 503)
+            return JSONResponse(status_code=503, content={"error": "investigator_unavailable"})
+        _observe_http(current, "/v1/investigations", 200)
+        return JSONResponse(opened)
+
+    @app.get("/v1/investigations/{investigation_id}")
+    def get_investigation(investigation_id: str, request: Request) -> JSONResponse:
+        current: AppDeps = request.app.state.deps
+        try:
+            row = current.db.get_investigation(investigation_id)
+        except Exception:
+            return JSONResponse(status_code=503, content={"error": "unavailable"})
+        if row is None:
+            return JSONResponse(status_code=404, content={"error": "not_found"})
+        return JSONResponse(_serialize_row(row))
 
     return app
 

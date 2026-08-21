@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 from redis import Redis
 
@@ -95,3 +96,11 @@ def test_threat_h2_valid_plus_critical_is_risk_declined():
             json=_agent(device_id="dev_critical"),
         )
     assert response.json()["state"] == "RISK_DECLINED"
+
+
+def test_investigator_approve_payment_is_hard_error():
+    from payment_platform.investigator.tools import ToolDenied, assert_allowlisted
+
+    with pytest.raises(ToolDenied) as caught:
+        assert_allowlisted("approve_payment")
+    assert caught.value.tool == "approve_payment"

@@ -35,6 +35,9 @@ def _schema_paths() -> list[Path]:
         here.parent / "schema_phase2.sql",
         here.parents[2] / "sql" / "phase2.sql",
         Path.cwd() / "sql" / "phase2.sql",
+        here.parent / "schema_phase7.sql",
+        here.parents[2] / "sql" / "phase7.sql",
+        Path.cwd() / "sql" / "phase7.sql",
     ]
     seen = {p.resolve() for p in paths}
     for extra in extras:
@@ -564,6 +567,91 @@ class PostgresStore:
             return None
         payload = row["decision_json"]
         return dict(payload) if isinstance(payload, dict) else None
+
+    def insert_investigation(
+        self,
+        *,
+        investigation_id: str,
+        transaction_id: str,
+        agent_id: str,
+    ) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO investigations (
+                    investigation_id, transaction_id, agent_id, status, case_file
+                ) VALUES (%s, %s, %s, %s, %s)
+                """,
+                (investigation_id, transaction_id, agent_id, "open", Json({})),
+            )
+            conn.commit()
+
+    def save_investigation_case(
+        self,
+        investigation_id: str,
+        *,
+        case_file: dict[str, Any],
+        status: str,
+    ) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                UPDATE investigations
+                SET case_file = %s, status = %s, updated_at = NOW()
+                WHERE investigation_id = %s
+                """,
+                (Json(case_file), status, investigation_id),
+            )
+            conn.commit()
+
+    def get_investigation(self, investigation_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM investigations WHERE investigation_id = %s",
+                (investigation_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def append_investigator_audit(
+        self,
+        *,
+        investigation_id: str | None,
+        agent_id: str,
+        tool: str,
+        arguments: dict[str, Any],
+        result: dict[str, Any] | None,
+        error: str | None,
+    ) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO investigator_audit (
+                    investigation_id, agent_id, tool, arguments, result, error
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    investigation_id,
+                    agent_id,
+                    tool,
+                    Json(arguments),
+                    Json(result) if result is not None else None,
+                    error,
+                ),
+            )
+            conn.commit()
+
+    def list_investigator_audit(self, investigation_id: str) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT tool, error, created_at
+                FROM investigator_audit
+                WHERE investigation_id = %s
+                ORDER BY id ASC
+                """,
+                (investigation_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def list_payment_outbox_payloads(self, *, limit: int = 10000) -> list[dict[str, Any]]:
         with self._pool.connection() as conn:
