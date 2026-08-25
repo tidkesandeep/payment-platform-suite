@@ -346,6 +346,21 @@ class PostgresStore:
             ).fetchone()
         return dict(row) if row else None
 
+    def list_holds(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT transaction_id, state, channel, customer_id, merchant_id,
+                       amount_minor, currency, received_at
+                FROM transactions
+                WHERE state IN ('CHALLENGED', 'MANUAL_REVIEW')
+                ORDER BY received_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def expire_lease(self, api_key_id: str, idempotency_key: str) -> None:
         """Test helper: force the lease into the past so the next POST can reclaim."""
         past = datetime.now(timezone.utc) - timedelta(seconds=1)
