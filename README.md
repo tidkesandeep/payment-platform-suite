@@ -41,6 +41,15 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 10
+
+Security review is a **checklist**, not a compliance certificate. This demo is not PCI DSS compliant, GDPR certified, SOX certified, or a Mastercard partnership. Private JWKs, `.env`, and Kaggle overlays stay out of git and the Docker build context. JSON logs redact API keys, DSN passwords, and JWK `d`. Threats A–G, H, and H2 run in GitHub Actions with the hygiene tests.
+
+```bash
+payment-security-scan
+pytest tests/threat_model tests/security
+```
+
 ## Phase 9
 
 One compose run drives **human** and **agent** checkout. `demo-issuer` writes an ES256 keypair into a Docker volume (private JWK is never in git). The API loads only `issuer.pub.jwk`. `payment-demo` then posts:
