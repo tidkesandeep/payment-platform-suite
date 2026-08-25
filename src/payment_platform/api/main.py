@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -54,7 +55,7 @@ def create_app(
             db=db,
             velocity=VelocityStore(redis, db),
             intent=OfficialIntentVerifier(
-                issuer_public_key=issuer_public_key_from_jwk(cfg.vi_issuer_jwk),
+                issuer_public_key=issuer_public_key_from_jwk(cfg.issuer_jwk_material()),
                 nonce_store=db,
             ),
             scorer=scorer,
@@ -190,6 +191,44 @@ def create_app(
             generate_latest(current.metrics.registry),
             media_type=CONTENT_TYPE_LATEST,
         )
+
+    @app.get("/v1/holds")
+    def list_holds(request: Request) -> JSONResponse:
+        current: AppDeps = request.app.state.deps
+        secret = _api_secret(
+            request.headers.get("x-api-key"),
+            request.headers.get("authorization"),
+        )
+        if not secret:
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        try:
+            api_key_id = current.db.resolve_api_key(
+                secret, current.settings.api_key, current.settings.api_key_id
+            )
+        except Exception:
+            return JSONResponse(status_code=503, content={"error": "unavailable"})
+        if api_key_id is None:
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        try:
+            rows = current.db.list_holds()
+        except Exception:
+            return JSONResponse(status_code=503, content={"error": "unavailable"})
+        ttl = current.settings.hold_ttl_seconds
+        holds = []
+        for row in rows:
+            item = _serialize_row(row)
+            received = row.get("received_at")
+            age_s = None
+            ttl_elapsed = False
+            if hasattr(received, "timestamp"):
+                age_s = max(0, int(time.time() - received.timestamp()))
+                ttl_elapsed = ttl > 0 and age_s >= ttl
+            item["hold_age_s"] = age_s
+            item["hold_ttl_seconds"] = ttl
+            item["ttl_elapsed"] = ttl_elapsed
+            item["note"] = "Holds are terminal. Step-up/3DS is not implemented."
+            holds.append(item)
+        return JSONResponse({"holds": holds})
 
     @app.get("/v1/payments/{transaction_id}")
     def get_payment(transaction_id: str, request: Request) -> JSONResponse:
