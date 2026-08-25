@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+.env.*
+demo-keys/
+*.priv.jwk
+*.pem
+*.key
+dump.rdb
+data/ieee-cis/
+__pycache__/
+.pytest_cache/
+*.pyc
