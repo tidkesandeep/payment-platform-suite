@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from payment_platform.observability.redact import redact_text
+
 
 class JsonLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -14,7 +16,7 @@ class JsonLogFormatter(logging.Formatter):
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
-            "msg": record.getMessage(),
+            "msg": redact_text(record.getMessage()),
         }
         for key in (
             "http_status",
@@ -24,9 +26,10 @@ class JsonLogFormatter(logging.Formatter):
             "path",
         ):
             if hasattr(record, key):
-                payload[key] = getattr(record, key)
+                value = getattr(record, key)
+                payload[key] = redact_text(value) if isinstance(value, str) else value
         if record.exc_info:
-            payload["exc"] = self.formatException(record.exc_info)
+            payload["exc"] = redact_text(self.formatException(record.exc_info))
         return json.dumps(payload, default=str)
 
 

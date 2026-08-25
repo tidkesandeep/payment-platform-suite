@@ -41,6 +41,7 @@ payment-features-rebuild = "feature_rebuild.cli:main"
 payment-train-champion = "payment_platform.champion.train:main"
 payment-demo-issuer = "demo.issuer:main"
 payment-demo = "demo.cli:main"
+payment-security-scan = "payment_platform.security.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src", "apps"]
