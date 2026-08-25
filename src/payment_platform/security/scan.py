@@ -113,6 +113,15 @@ def _luhn_valid(number: str) -> bool:
     return total % 10 == 0
 
 
+def _unnegated_claim(text: str) -> str | None:
+    collapsed = re.sub(r"\s+", " ", text)
+    for match in FORBIDDEN_CLAIM.finditer(collapsed):
+        window = collapsed[max(0, match.start() - 120) : match.end()]
+        if not NEGATION.search(window):
+            return match.group(0)
+    return None
+
+
 def _is_product_surface(root: Path, path: Path) -> bool:
     try:
         relative = path.relative_to(root)
@@ -168,10 +177,9 @@ def scan_repository(root: Path | None = None) -> ScanReport:
             if SSN.search(text):
                 findings.append(Finding("ssn", rel, "SSN-shaped value"))
         if _is_product_surface(base, path):
-            for line in text.splitlines():
-                if FORBIDDEN_CLAIM.search(line) and not NEGATION.search(line):
-                    findings.append(Finding("pci_claim", rel, line.strip()[:160]))
-                    break
+            claim = _unnegated_claim(text)
+            if claim:
+                findings.append(Finding("pci_claim", rel, claim))
             for match in EMAIL.finditer(text):
                 domain = match.group(1).lower()
                 if domain not in ALLOWED_EMAIL_DOMAINS:
