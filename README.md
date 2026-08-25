@@ -41,6 +41,26 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 9
+
+One compose run drives **human** and **agent** checkout. `demo-issuer` writes an ES256 keypair into a Docker volume (private JWK is never in git). The API loads only `issuer.pub.jwk`. `payment-demo` then posts:
+
+| Scenario | Channel | Result |
+|---|---|---|
+| human low | `human` | `AUTHORIZED` |
+| agent low | official VI chain | `AUTHORIZED` |
+| H | valid chain + `dev_high` | `MANUAL_REVIEW` |
+| H2 | valid chain + `dev_critical` | `RISK_DECLINED` |
+
+`GET /v1/holds` lists `CHALLENGED` / `MANUAL_REVIEW` rows. Hold TTL is informational; step-up/3DS is not implemented. Simulator `--channel both` alternates human and agent and requires `--keys-dir`.
+
+```bash
+payment-demo-issuer --keys ./demo-keys
+export PAYMENTS_VI_ISSUER_JWK_FILE=$PWD/demo-keys/issuer.pub.jwk
+payment-demo --base-url http://127.0.0.1:8000 --keys ./demo-keys
+payment-simulator --channel both --count 4 --keys-dir ./demo-keys
+```
+
 ## Phase 8
 
 Agent `POST /v1/payments` verifies **official** Mastercard Verifiable Intent (`verifiable_intent`: L1–L3 SD-JWT, ES256, `verify_chain` + `check_constraints`). This repo does not implement cryptography and does not fork the reference implementation. A valid signature is **not** an approve; fraud and policy still run.
