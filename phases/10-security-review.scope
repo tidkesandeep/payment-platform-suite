@@ -3,3 +3,8 @@ Phase 10 — Security review
 In: Secrets not in git, no real PII, threat tests in CI.
 Out: PCI claims.
 Done when: the security checklist is green.
+
+Implementation: tracked-tree scan fails on private JWKs, PEMs, sk_live, and
+Luhn PANs. JSON logs redact keys and DSN passwords. .dockerignore keeps
+secrets out of images. GitHub Actions runs tests/threat_model (A–G, H, H2)
+and tests/security. No PCI / SOX / GDPR / Mastercard-partnership claims.
