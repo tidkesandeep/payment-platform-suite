@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,10 +24,23 @@ class Settings(BaseSettings):
     investigator_rate_limit_per_minute: int = 60
     merchant_allowlist: str = ""
     vi_issuer_jwk: str = ""
+    vi_issuer_jwk_file: str = ""
+    hold_ttl_seconds: int = 900
 
     def parsed_merchant_allowlist(self) -> frozenset[str] | None:
         items = {part.strip() for part in self.merchant_allowlist.split(",") if part.strip()}
         return frozenset(items) if items else None
+
+    def issuer_jwk_material(self) -> str:
+        if self.vi_issuer_jwk.strip():
+            return self.vi_issuer_jwk
+        path = self.vi_issuer_jwk_file.strip()
+        if not path:
+            return ""
+        try:
+            return Path(path).read_text(encoding="utf-8")
+        except OSError:
+            return ""
 
 
 settings = Settings()
