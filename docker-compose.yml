@@ -58,13 +58,24 @@ services:
       PAYMENTS_DATABASE_URL: postgresql://payments:payments@postgres:5432/payments
       PAYMENTS_REDIS_URL: redis://redis:6379/0
       PAYMENTS_API_KEY: sk_test_demo
+      PAYMENTS_VI_ISSUER_JWK_FILE: /keys/issuer.pub.jwk
+      PAYMENTS_HOLD_TTL_SECONDS: "900"
+    volumes:
+      - vi_keys:/keys:ro
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      demo-issuer:
+        condition: service_completed_successfully
 
   stream:
     build:
@@ -109,5 +120,29 @@ services:
     depends_on:
       - prometheus
 
+  demo-issuer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["payment-demo-issuer", "--keys", "/keys"]
+    volumes:
+      - vi_keys:/keys
+    restart: "no"
+
+  demo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["payment-demo", "--base-url", "http://api:8000", "--keys", "/keys"]
+    environment:
+      PAYMENTS_API_KEY: sk_test_demo
+    volumes:
+      - vi_keys:/keys:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   postgres_data:
+  vi_keys:
