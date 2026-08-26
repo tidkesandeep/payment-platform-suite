@@ -1,0 +1,11 @@
+Phase 7 — Investigator
+
+In: Allowlisted read tools, audit log, deterministic template if no LLM.
+Out: Any tool that mutates transactions.state.
+Done when: a case file exists and approve_payment is impossible.
+
+Implementation: Investigator invokes only get_transaction, get_features,
+verify_intent, and create_investigation. POST /v1/investigations writes a
+deterministic case file and append-only investigator_audit rows. Approve and
+decline tools are denied. MANUAL_REVIEW cases escalate to a human. Authorize
+does not depend on the investigator.

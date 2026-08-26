@@ -1,0 +1,5 @@
+Phase 3 — Lakehouse
+
+In: Spark jobs bronze to silver to gold from topics or files.
+Out: Spark on the API process.
+Done when: a day's simulator data is queryable in gold.

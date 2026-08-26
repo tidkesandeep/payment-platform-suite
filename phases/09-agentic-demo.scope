@@ -1,0 +1,11 @@
+Phase 9 — Agentic demo
+
+In: Human plus agent in one compose; H and H2 tests green.
+Out: Step-up / 3DS (still a hold).
+Done when: H and H2 tests pass.
+
+Implementation: demo-issuer mints an ES256 keypair into a volume (public JWK
+only on the API). payment-demo posts human AUTHORIZED, agent AUTHORIZED, H
+MANUAL_REVIEW, and H2 RISK_DECLINED. GET /v1/holds is a read-only operator
+queue; hold TTL is informational. Simulator --channel both mints official
+chains. No 3DS.

@@ -1,0 +1,148 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: payments
+      POSTGRES_DB: payments
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./sql/phase2.sql:/docker-entrypoint-initdb.d/02-phase2.sql:ro
+      - ./sql/phase7.sql:/docker-entrypoint-initdb.d/03-phase7.sql:ro
+      - ./sql/phase8.sql:/docker-entrypoint-initdb.d/04-phase8.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr=internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr=internal://redpanda:8082,external://localhost:18082
+    ports:
+      - "19092:19092"
+      - "18082:18082"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PAYMENTS_DATABASE_URL: postgresql://payments:payments@postgres:5432/payments
+      PAYMENTS_REDIS_URL: redis://redis:6379/0
+      PAYMENTS_API_KEY: sk_test_demo
+      PAYMENTS_VI_ISSUER_JWK_FILE: /keys/issuer.pub.jwk
+      PAYMENTS_HOLD_TTL_SECONDS: "900"
+    volumes:
+      - vi_keys:/keys:ro
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      demo-issuer:
+        condition: service_completed_successfully
+
+  stream:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["payment-stream"]
+    environment:
+      PAYMENTS_DATABASE_URL: postgresql://payments:payments@postgres:5432/payments
+      PAYMENTS_REDIS_URL: redis://redis:6379/0
+      PAYMENTS_KAFKA_BOOTSTRAP: redpanda:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  demo-issuer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["payment-demo-issuer", "--keys", "/keys"]
+    volumes:
+      - vi_keys:/keys
+    restart: "no"
+
+  demo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["payment-demo", "--base-url", "http://api:8000", "--keys", "/keys"]
+    environment:
+      PAYMENTS_API_KEY: sk_test_demo
+    volumes:
+      - vi_keys:/keys:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  postgres_data:
+  vi_keys:

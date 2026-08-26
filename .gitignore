@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.env
+.env.*
+demo-keys/
+*.priv.jwk
+*.pem
+*.key
+dump.rdb
+data/ieee-cis/

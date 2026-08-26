@@ -1,0 +1,11 @@
+Phase 5 — Fraud
+
+In: Real XGBoost champion in-process; IEEE-CIS plus synthetic; time-ordered split.
+Out: Weighted three-model blend on the hot path; SageMaker.
+Done when: score is a dimension, not the decision.
+
+Implementation: XGBoostChampion is the sole scorer on /v1/payments
+(timeout ~20ms, UNKNOWN on timeout). Training uses a time-ordered 80/20
+split on synthetic IEEE-CIS-shaped rows, with an optional overlay of
+data/ieee-cis/train_transaction.csv. SHAP runs only on /explain and is
+skipped when the decision was APPROVE. LightGBM blend and SageMaker stay out.

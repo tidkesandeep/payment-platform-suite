@@ -1,0 +1,11 @@
+Phase 1 — Foundation
+
+In: Compose (API, Postgres, Redis, Redpanda), schema, two-TX idempotency,
+outbox table, validation, policy, stub IntentVerifier, champion stub,
+sync Redis INCR, HTTP mapping, HTTP simulator.
+
+Out: Spark, lakehouse, investigator, official Verifiable Intent, SHAP,
+Grafana, production-scale load tests, cloud.
+
+Done when: concurrent same-key POSTs (one authorize + 409 or 200 replay);
+lease reclaim after crash; float amounts rejected.

@@ -1,0 +1,13 @@
+{
+  "n_train": 6400,
+  "n_test": 1600,
+  "split": "time-ordered-80-20",
+  "auc_roc": 0.9510281786859974,
+  "pr_auc": 0.9341209928425572,
+  "precision": 0.9583333333333334,
+  "recall": 0.9030023094688222,
+  "fpr": 0.01456726649528706,
+  "fnr": 0.09699769053117784,
+  "source": "synthetic-ieee-like plus optional data/ieee-cis CSV",
+  "hot_path": "xgboost-champion-only"
+}
