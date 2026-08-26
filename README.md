@@ -41,6 +41,14 @@ payment-simulator --base-url http://127.0.0.1:8000 --count 20 --tps 10 --channel
 
 Compose starts API, stream worker, Postgres, Redis, and Redpanda. The API service does not depend on Redpanda.
 
+## Phase 11
+
+Locust POSTs `/v1/payments` (human channel, unique customer and idempotency keys). The published numbers in [`load/MEASURED.md`](./load/MEASURED.md) are **measured** TPS and p95 from that run. They are not 1M TPS, not production capacity, and the 100ms p95 figure stays a local target (`slo_contractual: false`).
+
+```bash
+payment-load --host http://127.0.0.1:8000 --users 6 --duration 20
+```
+
 ## Phase 10
 
 Security review is a **checklist**, not a compliance certificate. This demo is not PCI DSS compliant, GDPR certified, SOX certified, or a Mastercard partnership. Private JWKs, `.env`, and Kaggle overlays stay out of git and the Docker build context. JSON logs redact API keys, DSN passwords, and JWK `d`. Threats A–G, H, and H2 run in GitHub Actions with the hygiene tests.
