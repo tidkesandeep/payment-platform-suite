@@ -1,0 +1,18 @@
+{
+  "tool": "locust",
+  "target": "POST /v1/payments",
+  "host": "http://127.0.0.1:8000",
+  "users": 6,
+  "spawn_rate": 6.0,
+  "duration_seconds": 20.0,
+  "requests": 4262,
+  "failures": 0,
+  "measured_tps": 213.1,
+  "p50_ms": 26.0,
+  "p95_ms": 38.0,
+  "p99_ms": 49.0,
+  "slo_p95_target_ms": 100.0,
+  "slo_contractual": false,
+  "invented_1m_tps": false,
+  "notes": "Local measurement against POST /v1/payments. Not production capacity. Not 1M TPS. Unique customer_id per request so velocity caps do not dominate."
+}
