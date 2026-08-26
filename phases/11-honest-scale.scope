@@ -5,3 +5,7 @@ Out: Invented 1M TPS.
 Done when: measured p95 is published.
 
 Phase 12 (cloud) is deferred. Do not start it from this branch.
+
+Implementation: Locust POSTs /v1/payments (human, unique keys). payment-load
+writes load/last-run.json and load/MEASURED.md. This run measured 213.10 TPS
+and p95 38.0 ms at 6 users for 20s. Not 1M TPS. 100ms p95 is not a contract.
